@@ -81,19 +81,19 @@ pub const Sphere = struct {
 
     pub fn ray_intersections(self: Sphere, ray: Ray) Intersections(256) {
         const oc = self.origin.sub(ray.origin);
-        const a = ray.dir.dot(ray.dir);
-        const b = -2.0 * ray.dir.dot(oc);
-        const c = oc.dot(oc) - (self.radius * self.radius);
-        const discriminant = b * b - 4 * a * c;
+        const a = ray.dir.lenSq();
+        const h = ray.dir.dot(oc);
+        const c = oc.lenSq() - (self.radius * self.radius);
+        const discriminant = h*h - a*c;
         var count: u16 = 0;
         var intersection_pts: [256]zm.Vec3 = undefined;
         if (discriminant > 0) {
             count = 2;
-            intersection_pts[0] = ray.at((-b - @sqrt(discriminant)) / (2.0 * a));
-            intersection_pts[1] = ray.at((-b + @sqrt(discriminant)) / (2.0 * a));
+            intersection_pts[0] = ray.at((h - @sqrt(discriminant)) / a);
+            intersection_pts[1] = ray.at((h + @sqrt(discriminant)) / a);
         } else if (discriminant == 0) {
             count = 1;
-            intersection_pts[0] = ray.at((-b) / (2.0 * a));
+            intersection_pts[0] = ray.at(h / a);
         }
         return Intersections(256){
             .count = count,
