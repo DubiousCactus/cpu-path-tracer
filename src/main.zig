@@ -53,9 +53,49 @@ pub const Ray = struct {
         };
     }
 
-    // pub fn unit(self: Ray) zm.Vec3 {
-    //     return self.dir.sub(self.origin).norm();
-    // }
+    pub fn at(self: Ray, t: f64) zm.Vec3 {
+        return self.origin.add(self.dir.scale(t));
+    }
+};
+
+pub fn Intersections(max_count: comptime_int) type {
+    if (max_count < 1) {
+        @compileError("Intersections count must be > 1!");
+    }
+
+    return struct {
+        const Self = @This();
+
+        count: u16,
+        where: [max_count]zm.Vec3,
+
+        pub fn slice(self: Self) []zm.Vec3 {
+            return self.where[0..self.count];
+        }
+    };
+}
+
+pub const Sphere = struct {
+    origin: zm.Vec3,
+    radius: f64,
+
+    pub fn ray_intersections(self: Sphere, ray: Ray) Intersections(256) {
+        const oc = self.origin.sub(ray.origin);
+        const a = ray.dir.dot(ray.dir);
+        const b = -2.0 * ray.dir.dot(oc);
+        const c = oc.dot(oc) - (self.radius * self.radius);
+        const discriminant = b * b - 4 * a * c;
+        var count: u16 = 0;
+        if (discriminant > 0) {
+            count = 2;
+        } else if (discriminant == 0) {
+            count = 1;
+        }
+        return Intersections(256){
+            .count = count,
+            .where = undefined,
+        };
+    }
 };
 
 pub fn write_pixel(writer: *std.io.Writer, pixel: zm.Vec3) !void {
@@ -66,11 +106,14 @@ pub fn write_pixel(writer: *std.io.Writer, pixel: zm.Vec3) !void {
     });
 }
 
-pub fn ray_color(ray: Ray) zm.Vec3 {
+pub fn ray_color(sphere: Sphere, ray: Ray) zm.Vec3 {
+    if (sphere.ray_intersections(ray).count > 0) {
+        return zm.Vec3{ .data = .{ 1.0, 0, 0 } };
+    }
     return zm.Vec3.lerp(
         zm.Vec3{ .data = .{ 1, 1, 1 } },
         zm.Vec3{ .data = .{ 0.5, 0.7, 1 } },
-        0.5*(ray.dir.data[1] + 1.0),
+        0.5 * (ray.dir.data[1] + 1.0),
     );
 }
 
@@ -120,6 +163,7 @@ pub fn main() !void {
     try out.print("P3\n{d} {d}\n255\n", .{ width, height });
 
     // Rendering!
+    const sphere = Sphere{ .radius = 0.5, .origin = zm.Vec3{ .data = .{ 0, 0, -1 } } };
     for (0..height) |j| {
         for (0..width) |i| {
             // const r_f = @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(width - 1));
@@ -128,7 +172,7 @@ pub fn main() !void {
             const pixel_center = pixel00_loc.add(pixel_delta_u.scale(@floatFromInt(i))).add(pixel_delta_v.scale(@floatFromInt(j)));
             const ray_direction = pixel_center.sub(cam_eye);
             const ray = Ray.init(cam_eye, ray_direction);
-            const c = ray_color(ray);
+            const c = ray_color(sphere, ray);
             try write_pixel(out, c);
         }
         try out.flush();
