@@ -58,7 +58,7 @@ pub const Ray = struct {
     }
 };
 
-pub fn Intersections(max_count: comptime_int) type {
+pub fn Hits(max_count: comptime_int) type {
     if (max_count < 1) {
         @compileError("Intersections count must be > 1!");
     }
@@ -68,36 +68,59 @@ pub fn Intersections(max_count: comptime_int) type {
 
         count: u16,
         where: [max_count]zm.Vec3,
+        normals: [max_count]zm.Vec3,
 
-        pub fn slice(self: Self) []zm.Vec3 {
+        pub fn where_slice(self: Self) []zm.Vec3 {
             return self.where[0..self.count];
+        }
+
+        pub fn normal_slice(self: Self) []zm.Vec3 {
+            return self.normals[0..self.count];
         }
     };
 }
+
+pub const Hit = struct {
+    point: zm.Vec3,
+    normal: zm.Vec3,
+    at: f64
+};
+
+pub const Hittable = union(enum) {
+    sphere: Sphere,
+
+    pub fn hit(self: Hittable, ray: Ray, ray_tmin: f64, ray_tmax: f64) ?Hit {
+        switch (self) {
+            inline else => |case| return case.hit(ray, ray_tmin, ray_tmax),
+        }
+    }
+};
 
 pub const Sphere = struct {
     origin: zm.Vec3,
     radius: f64,
 
-    pub fn ray_intersections(self: Sphere, ray: Ray) Intersections(256) {
+    pub fn hit(self: Sphere, ray: Ray, ray_tmin: f64, ray_tmax: f64) ?Hit {
         const oc = self.origin.sub(ray.origin);
         const a = ray.dir.lenSq();
         const h = ray.dir.dot(oc);
         const c = oc.lenSq() - (self.radius * self.radius);
-        const discriminant = h*h - a*c;
-        var count: u16 = 0;
-        var intersection_pts: [256]zm.Vec3 = undefined;
-        if (discriminant > 0) {
-            count = 2;
-            intersection_pts[0] = ray.at((h - @sqrt(discriminant)) / a);
-            intersection_pts[1] = ray.at((h + @sqrt(discriminant)) / a);
-        } else if (discriminant == 0) {
-            count = 1;
-            intersection_pts[0] = ray.at(h / a);
+        const discriminant = h * h - a * c;
+        if (discriminant < 0) return null;
+
+        const sqrt_d = @sqrt(discriminant);
+        var root = (h - sqrt_d) / a;
+        if (root <= ray_tmin or root >= ray_tmax) {
+            root = (h + sqrt_d) / a;
+            if (root <= ray_tmin or root >= ray_tmax) {
+                return null;
+            }
         }
-        return Intersections(256){
-            .count = count,
-            .where = intersection_pts,
+        const p = ray.at(root);
+        return .{
+            .point = p,
+            .normal = p.sub(self.origin).scale(1 / self.radius),
+            .at = root,
         };
     }
 
@@ -114,10 +137,9 @@ pub fn write_pixel(writer: *std.io.Writer, pixel: zm.Vec3) !void {
     });
 }
 
-pub fn ray_color(sphere: Sphere, ray: Ray) zm.Vec3 {
-    const intersections = sphere.ray_intersections(ray);
-    if (intersections.count > 0) {
-        return sphere.normal_at(intersections.where[0]).add(zm.Vec3{ .data = .{1,1,1}}).scale(0.5);
+pub fn ray_color(object: Hittable, ray: Ray) zm.Vec3 {
+    if (object.hit(ray, 0.1, 100.0)) |hit| {
+        return hit.normal.add(zm.Vec3{ .data = .{ 1, 1, 1 } }).scale(0.5);
     }
     return zm.Vec3.lerp(
         zm.Vec3{ .data = .{ 1, 1, 1 } },
@@ -125,9 +147,7 @@ pub fn ray_color(sphere: Sphere, ray: Ray) zm.Vec3 {
         0.5 * (ray.dir.data[1] + 1.0),
     );
 }
-
-pub fn main() !void {
-    // Image
+pub fn main() !void { // Image
     const width: u16 = 640;
     const aspect_ratio: f32 = 16.0 / 9.0;
     const height = @max(1, @as(u16, @intFromFloat(@as(f32, @floatFromInt(width)) / aspect_ratio)));
@@ -172,7 +192,7 @@ pub fn main() !void {
     try out.print("P3\n{d} {d}\n255\n", .{ width, height });
 
     // Rendering!
-    const sphere = Sphere{ .radius = 0.5, .origin = zm.Vec3{ .data = .{ 0, 0, -1 } } };
+    const sphere = Hittable{ .sphere = Sphere{ .radius = 0.5, .origin = zm.Vec3{ .data = .{ 0, 0, -1 } } } };
     for (0..height) |j| {
         for (0..width) |i| {
             // const r_f = @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(width - 1));
