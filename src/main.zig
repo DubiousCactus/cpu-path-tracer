@@ -86,15 +86,23 @@ pub const Sphere = struct {
         const c = oc.dot(oc) - (self.radius * self.radius);
         const discriminant = b * b - 4 * a * c;
         var count: u16 = 0;
+        var intersection_pts: [256]zm.Vec3 = undefined;
         if (discriminant > 0) {
             count = 2;
+            intersection_pts[0] = ray.at((-b - @sqrt(discriminant)) / (2.0 * a));
+            intersection_pts[1] = ray.at((-b + @sqrt(discriminant)) / (2.0 * a));
         } else if (discriminant == 0) {
             count = 1;
+            intersection_pts[0] = ray.at((-b) / (2.0 * a));
         }
         return Intersections(256){
             .count = count,
-            .where = undefined,
+            .where = intersection_pts,
         };
+    }
+
+    pub fn normal_at(self: Sphere, p: zm.Vec3) zm.Vec3 {
+        return p.sub(self.origin).norm();
     }
 };
 
@@ -107,8 +115,9 @@ pub fn write_pixel(writer: *std.io.Writer, pixel: zm.Vec3) !void {
 }
 
 pub fn ray_color(sphere: Sphere, ray: Ray) zm.Vec3 {
-    if (sphere.ray_intersections(ray).count > 0) {
-        return zm.Vec3{ .data = .{ 1.0, 0, 0 } };
+    const intersections = sphere.ray_intersections(ray);
+    if (intersections.count > 0) {
+        return sphere.normal_at(intersections.where[0]).add(zm.Vec3{ .data = .{1,1,1}}).scale(0.5);
     }
     return zm.Vec3.lerp(
         zm.Vec3{ .data = .{ 1, 1, 1 } },
