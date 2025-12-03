@@ -3,6 +3,7 @@ const zm = @import("zm");
 const camera = @import("camera.zig");
 
 const Ray = camera.Ray;
+const Interval = camera.Interval;
 
 pub fn Hits(max_count: comptime_int) type {
     if (max_count < 1) {
@@ -36,9 +37,9 @@ pub const Hittable = union(enum) {
     sphere: Sphere,
     hittable_group: HittableGroup,
 
-    pub fn hit(self: Hittable, ray: Ray, ray_tmin: f64, ray_tmax: f64) ?Hit {
+    pub fn hit(self: Hittable, ray: Ray, ray_t: Interval) ?Hit {
         switch (self) {
-            inline else => |impl| return impl.hit(ray, ray_tmin, ray_tmax),
+            inline else => |impl| return impl.hit(ray, ray_t),
         }
     }
 };
@@ -54,12 +55,12 @@ pub const HittableGroup = struct {
         self.objects.deinit(gpa);
     }
 
-    pub fn hit(self: HittableGroup, ray: Ray, ray_tmin: f64, ray_tmax: f64) ?Hit {
+    pub fn hit(self: HittableGroup, ray: Ray, ray_t: Interval) ?Hit {
         var last_hit: ?Hit = null;
-        var closest_so_far = ray_tmax;
+        var closest_so_far = ray_t.max;
 
         for (self.objects.items) |obj| {
-            if (obj.hit(ray, ray_tmin, closest_so_far)) |current_hit| {
+            if (obj.hit(ray, Interval{ .min = ray_t.min, .max = closest_so_far })) |current_hit| {
                 last_hit = current_hit;
                 closest_so_far = current_hit.at;
             }
@@ -73,7 +74,7 @@ pub const Sphere = struct {
     origin: zm.Vec3,
     radius: f64,
 
-    pub fn hit(self: Sphere, ray: Ray, ray_tmin: f64, ray_tmax: f64) ?Hit {
+    pub fn hit(self: Sphere, ray: Ray, ray_t: Interval) ?Hit {
         const oc = self.origin.sub(ray.origin);
         const a = ray.dir.lenSq();
         const h = ray.dir.dot(oc);
@@ -83,9 +84,9 @@ pub const Sphere = struct {
 
         const sqrt_d = @sqrt(discriminant);
         var root = (h - sqrt_d) / a;
-        if (root <= ray_tmin or root >= ray_tmax) {
+        if (!ray_t.surrounds(root)) {
             root = (h + sqrt_d) / a;
-            if (root <= ray_tmin or root >= ray_tmax) {
+            if (!ray_t.surrounds(root)) {
                 return null;
             }
         }

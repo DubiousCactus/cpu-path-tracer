@@ -78,3 +78,21 @@ pub const Ray = struct {
         return self.origin.add(self.dir.scale(t));
     }
 };
+
+pub const Interval = struct {
+    // Default interval is empty, so min=inf, max=-inf
+    min: f64 = std.math.inf(f64),
+    max: f64 = -std.math.inf(f64),
+
+    pub fn size(self: Interval) f64 {
+        return self.max - self.min;
+    }
+
+    pub fn contains(self: Interval, x: f64) bool {
+        return self.min <= x and self.max >= x;
+    }
+
+    pub fn surrounds(self: Interval, x: f64) bool {
+        return self.min < x and self.max > x;
+    }
+};
