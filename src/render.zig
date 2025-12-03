@@ -5,15 +5,71 @@ const scene = @import("scene.zig");
 
 const PPMImage = img.PPMImage;
 
-pub fn rayColor(object: scene.Hittable, ray: Ray) zm.Vec3 {
-    if (object.hit(ray, Interval{ .min = 0, .max = std.math.inf(f64) })) |hit| {
-        return hit.normal.add(zm.Vec3{ .data = .{ 1, 1, 1 } }).scale(0.5);
+fn rayColor(object: scene.Hittable, ray: Ray, rng: std.Random, bounce: u16, max_bounces: u16) zm.Vec3 {
+    if (bounce > max_bounces) {
+        return zm.Vec3.zero();
+    }
+    if (object.hit(ray, Interval{ .min = 0.001, .max = std.math.inf(f64) })) |hit| {
+        const random_bounce = randomHemisphereVec3(rng, hit.normal);
+        return rayColor(
+            object,
+            Ray.init(hit.point, random_bounce),
+            rng,
+            bounce + 1,
+            max_bounces,
+        ).scale(0.5);
     }
     return zm.Vec3.lerp(
         zm.Vec3{ .data = .{ 1, 1, 1 } },
         zm.Vec3{ .data = .{ 0.5, 0.7, 1 } },
         0.5 * (ray.dir.data[1] + 1.0),
     );
+}
+
+fn randomF64(rng: std.Random) f64 {
+    return rng.float(f64);
+}
+
+fn randomF64MinMax(rng: std.Random, a: f64, b: f64) f64 {
+    return a + (b - a) * rng.float(f64);
+}
+
+fn randomVec3(rng: std.Random) zm.Vec3 {
+    return zm.Vec3{ .data = .{
+        randomF64(rng),
+        randomF64(rng),
+        randomF64(rng),
+    } };
+}
+fn randomVec3MinMax(rng: std.Random, min: f64, max: f64) zm.Vec3 {
+    return zm.Vec3{ .data = .{
+        randomF64MinMax(rng, min, max),
+        randomF64MinMax(rng, min, max),
+        randomF64MinMax(rng, min, max),
+    } };
+}
+
+fn randomUnitVec3(rng: std.Random) zm.Vec3 {
+    // IMO, we can just do this to get a vector on the unit sphere:
+    // var vec = randomVec3MinMax(rng, -1, 1).norm();
+    // But for now I'll follow the reference implementation, because ZM doesn't handle
+    // the edge case of very small valued vectors in the norm() computation!
+    while (true) {
+        const v = randomVec3MinMax(rng, -1, 1);
+        const lensq = v.lenSq();
+        if (lensq > 1e-160 and lensq <= 1) {
+            return v.norm();
+        }
+    }
+}
+
+fn randomHemisphereVec3(rng: std.Random, surface_normal: zm.Vec3) zm.Vec3 {
+    const v = randomUnitVec3(rng);
+    if (v.dot(surface_normal) >= 0) {
+        return v;
+    } else {
+        return v.scale(-1);
+    }
 }
 
 pub const CameraParams = struct {
@@ -24,6 +80,7 @@ pub const CameraParams = struct {
     eye_pos: zm.Vec3 = zm.Vec3{ .data = .{ 0, 0, 0 } },
     viewport_height: f64 = 2.0,
     samples_per_pixel: u16 = 10,
+    max_bounces: u16 = 10,
 };
 
 pub const Camera = struct {
@@ -86,19 +143,10 @@ pub const Camera = struct {
             .rng = rng.random(),
         };
     }
-
-    fn random_f64(self: Camera) f64 {
-        return self.rng.float(f64);
-    }
-
-    fn random_ab_f64(self: Camera, a: f64, b: f64) f64 {
-        return a + (b - a) * self.rng.float(f64);
-    }
-
     fn getRay(self: Camera, x: u16, y: u16) Ray {
         const sample = zm.Vec3{ .data = .{
-            self.random_ab_f64(-1, 1),
-            self.random_ab_f64(-1, 1),
+            randomF64MinMax(self.rng, -1, 1),
+            randomF64MinMax(self.rng, -1, 1),
             0,
         } };
         var local_pixel_origin = zm.Vec3{ .data = .{
@@ -123,10 +171,16 @@ pub const Camera = struct {
             for (0..self.img_width) |i| {
                 var c = zm.Vec3.zero();
                 for (0..self.params.samples_per_pixel) |_| {
-                    c.addAssign(rayColor(world, self.getRay(
-                        @as(u16, @intCast(i)),
-                        @as(u16, @intCast(j)),
-                    )));
+                    c.addAssign(rayColor(
+                        world,
+                        self.getRay(
+                            @as(u16, @intCast(i)),
+                            @as(u16, @intCast(j)),
+                        ),
+                        self.rng,
+                        0,
+                        self.params.max_bounces,
+                    ));
                 }
                 try image.writePixelBuffered(
                     c.scale(1 / @as(f64, @floatFromInt(self.params.samples_per_pixel))),
