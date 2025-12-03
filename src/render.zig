@@ -5,12 +5,21 @@ const scene = @import("scene.zig");
 
 const PPMImage = img.PPMImage;
 
+// FIXME: Why can't I move this to the Camera struct? If I do, the output looks
+// completely wrong! Is something happening in the stack because of recursive method
+// calls??
 fn rayColor(object: scene.Hittable, ray: Ray, rng: std.Random, bounce: u16, max_bounces: u16) zm.Vec3 {
     if (bounce > max_bounces) {
         return zm.Vec3.zero();
     }
     if (object.hit(ray, Interval{ .min = 0.001, .max = std.math.inf(f64) })) |hit| {
-        const random_bounce = randomHemisphereVec3(rng, hit.normal);
+        // INFO: For basic diffuse material, we can sample uniformly on the hemisphere defined
+        // by the surface normal where the ray hit the object:
+        // const random_bounce = randomHemisphereVec3(rng, hit.normal);
+        // // But for true Lambertian materials, we need to weight the samples by the cosine of the angle between
+        // the normal and the random direction. We can approximate this by sampling
+        // uniformly from a unit sphere defined at the tip of the normal vector.
+        const random_bounce = hit.normal.add(randomUnitVec3(rng));
         return rayColor(
             object,
             Ray.init(hit.point, random_bounce),
