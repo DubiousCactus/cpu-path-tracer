@@ -20,9 +20,10 @@ pub const CameraParams = struct {
     img_width: u16,
     img_height: ?u16 = null,
     img_aspect_ratio: ?f16 = null,
-    focal_len: f64,
-    eye_pos: zm.Vec3,
-    viewport_height: f64,
+    focal_len: f64 = 1.0,
+    eye_pos: zm.Vec3 = zm.Vec3{ .data = .{ 0, 0, 0 } },
+    viewport_height: f64 = 2.0,
+    samples_per_pixel: u16 = 10,
 };
 
 pub const Camera = struct {
@@ -94,21 +95,42 @@ pub const Camera = struct {
         return a + (b - a) * self.rng.float(f64);
     }
 
-    // pub fn render(self: Camera, world: scene.Hittable) !void {
+    fn getRay(self: Camera, x: u16, y: u16) Ray {
+        const sample = zm.Vec3{ .data = .{
+            self.random_ab_f64(-1, 1),
+            self.random_ab_f64(-1, 1),
+            0,
+        } };
+        var local_pixel_origin = zm.Vec3{ .data = .{
+            @floatFromInt(x),
+            @floatFromInt(y),
+            0,
+        } };
+        local_pixel_origin.addAssign(sample);
+
+        const pixel_center = self.pixel00_loc.add(
+            self.pixel_delta_u.scale(local_pixel_origin.data[0]),
+        ).add(self.pixel_delta_v.scale(local_pixel_origin.data[1]));
+        const ray_direction = pixel_center.sub(self.params.eye_pos);
+        return Ray.init(self.params.eye_pos, ray_direction);
+    }
+
     pub fn render(self: Camera, world: scene.Hittable, image: *PPMImage) !void {
         var progress = std.Progress.start(
             .{ .estimated_total_items = self.img_height, .root_name = "Tracing light paths..." },
         );
-        // var image = try img.PPMImage.init("image.ppm", self.img_width, self.img_height);
-        // defer image.close();
         for (0..self.img_height) |j| {
             for (0..self.img_width) |i| {
-                const pixel_center = self.pixel00_loc.add(
-                    self.pixel_delta_u.scale(@floatFromInt(i)),
-                ).add(self.pixel_delta_v.scale(@floatFromInt(j)));
-                const ray_direction = pixel_center.sub(self.params.eye_pos);
-                const ray = Ray.init(self.params.eye_pos, ray_direction);
-                try image.writePixelBuffered(rayColor(world, ray));
+                var c = zm.Vec3.zero();
+                for (0..self.params.samples_per_pixel) |_| {
+                    c.addAssign(rayColor(world, self.getRay(
+                        @as(u16, @intCast(i)),
+                        @as(u16, @intCast(j)),
+                    )));
+                }
+                try image.writePixelBuffered(
+                    c.scale(1 / @as(f64, @floatFromInt(self.params.samples_per_pixel))),
+                );
             }
             try image.flush();
             progress.completeOne();
