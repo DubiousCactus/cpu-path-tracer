@@ -1,9 +1,9 @@
 const std = @import("std");
 const zm = @import("zm");
-const camera = @import("camera.zig");
+const render = @import("render.zig");
 
-const Ray = camera.Ray;
-const Interval = camera.Interval;
+const Ray = render.Ray;
+const Interval = render.Interval;
 
 pub fn Hits(max_count: comptime_int) type {
     if (max_count < 1) {

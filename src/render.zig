@@ -1,5 +1,20 @@
 const std = @import("std");
 const zm = @import("zm");
+const img = @import("image.zig");
+const scene = @import("scene.zig");
+
+const PPMImage = img.PPMImage;
+
+pub fn rayColor(object: scene.Hittable, ray: Ray) zm.Vec3 {
+    if (object.hit(ray, Interval{ .min = 0, .max = std.math.inf(f64) })) |hit| {
+        return hit.normal.add(zm.Vec3{ .data = .{ 1, 1, 1 } }).scale(0.5);
+    }
+    return zm.Vec3.lerp(
+        zm.Vec3{ .data = .{ 1, 1, 1 } },
+        zm.Vec3{ .data = .{ 0.5, 0.7, 1 } },
+        0.5 * (ray.dir.data[1] + 1.0),
+    );
+}
 
 pub const CameraParams = struct {
     img_width: u16,
@@ -47,6 +62,7 @@ pub const Camera = struct {
         ).sub(viewport_v.scale(0.5)); // We offset the first pixel by half the inter-pixel distance
         const pix_delta_u = viewport_u.scale(1 / @as(f64, @floatFromInt(params.img_width)));
         const pix_delta_v = viewport_v.scale(1 / @as(f64, @floatFromInt(height)));
+
         return .{
             .img_width = params.img_width,
             .img_height = height,
@@ -60,6 +76,29 @@ pub const Camera = struct {
             .viewport_upper_left = viewport_upper_left,
             .pixel00_loc = pix_delta_u.add(pix_delta_v).scale(0.5).add(viewport_upper_left),
         };
+    }
+
+    // pub fn render(self: Camera, world: scene.Hittable) !void {
+    pub fn render(self: Camera, world: scene.Hittable, image: *PPMImage) !void {
+        var progress = std.Progress.start(
+            .{ .estimated_total_items = self.img_height, .root_name = "Tracing light paths..." },
+        );
+        // var image = try img.PPMImage.init("image.ppm", self.img_width, self.img_height);
+        // defer image.close();
+        for (0..self.img_height) |j| {
+            for (0..self.img_width) |i| {
+                const pixel_center = self.pixel00_loc.add(
+                    self.pixel_delta_u.scale(@floatFromInt(i)),
+                ).add(self.pixel_delta_v.scale(@floatFromInt(j)));
+                const ray_direction = pixel_center.sub(self.params.eye_pos);
+                const ray = Ray.init(self.params.eye_pos, ray_direction);
+                try image.writePixelBuffered(rayColor(world, ray));
+            }
+            try image.flush();
+            progress.completeOne();
+        }
+        try image.flush();
+        progress.end();
     }
 };
 
