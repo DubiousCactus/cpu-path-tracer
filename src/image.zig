@@ -1,6 +1,8 @@
 const std = @import("std");
 const zm = @import("zm");
 
+const render = @import("render.zig");
+
 pub const PPMImage = struct {
     width: u16,
     height: u16,
@@ -33,10 +35,11 @@ pub const PPMImage = struct {
     }
 
     pub fn writePixelBuffered(self: *PPMImage, pixel: zm.Vec3) !void {
+        const intensity = render.Interval{ .min = 0.000, .max = 0.999 };
         try self.writer.interface.print("{d} {d} {d}\n", .{
-            @as(u8, @intFromFloat(255.999 * pixel.data[0])),
-            @as(u8, @intFromFloat(255.999 * pixel.data[1])),
-            @as(u8, @intFromFloat(255.999 * pixel.data[2])),
+            @as(u8, @intFromFloat(256 * intensity.clamp(pixel.data[0]))),
+            @as(u8, @intFromFloat(256 * intensity.clamp(pixel.data[1]))),
+            @as(u8, @intFromFloat(256 * intensity.clamp(pixel.data[2]))),
         });
     }
 

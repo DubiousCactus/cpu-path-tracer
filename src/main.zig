@@ -9,7 +9,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     const cam = render.Camera.init(.{
-        .img_width = 640,
+        .img_width = 800,
         .img_aspect_ratio = 16.0 / 9.0,
         .focal_len = 1.0,
         .eye_pos = zm.Vec3{ .data = .{ 0, 0, 0 } },
@@ -37,5 +37,4 @@ pub fn main() !void {
     }, allocator);
 
     try cam.render(world, &img);
-    // try cam.render(world);
 }

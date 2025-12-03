@@ -150,4 +150,8 @@ pub const Interval = struct {
     pub fn surrounds(self: Interval, x: f64) bool {
         return self.min < x and self.max > x;
     }
+
+    pub fn clamp(self: Interval, x: f64) f64 {
+        return std.math.clamp(x, self.min, self.max);
+    }
 };
