@@ -41,6 +41,8 @@ pub const Camera = struct {
     pixel_delta_v: zm.Vec3,
     pixel00_loc: zm.Vec3,
 
+    rng: std.Random,
+
     pub fn init(params: CameraParams) Camera {
         var height: u16 = 0;
         if (params.img_height) |h| {
@@ -54,7 +56,10 @@ pub const Camera = struct {
         const cam_front = params.eye_pos.sub(
             zm.Vec3{ .data = .{ 0, 0, params.focal_len } },
         ); // Remember cam_front is *negative* Z, so it's eye - vec3(0, 0, flen)!
-        const viewport_width = params.viewport_height * (@as(f64, @floatFromInt(params.img_width)) / @as(f64, @floatFromInt(height)));
+        const viewport_width = params.viewport_height * (@as(
+            f64,
+            @floatFromInt(params.img_width),
+        ) / @as(f64, @floatFromInt(height)));
         const viewport_u = zm.Vec3{ .data = .{ viewport_width, 0, 0 } };
         const viewport_v = zm.Vec3{ .data = .{ 0, -params.viewport_height, 0 } }; // Image plane is inverted!
         const viewport_upper_left = cam_front.sub(
@@ -62,7 +67,9 @@ pub const Camera = struct {
         ).sub(viewport_v.scale(0.5)); // We offset the first pixel by half the inter-pixel distance
         const pix_delta_u = viewport_u.scale(1 / @as(f64, @floatFromInt(params.img_width)));
         const pix_delta_v = viewport_v.scale(1 / @as(f64, @floatFromInt(height)));
-
+        var rng = std.Random.DefaultPrng.init(
+            @as(u64, @intCast(@max(0, std.time.timestamp()))),
+        );
         return .{
             .img_width = params.img_width,
             .img_height = height,
@@ -75,7 +82,16 @@ pub const Camera = struct {
             .pixel_delta_v = pix_delta_v,
             .viewport_upper_left = viewport_upper_left,
             .pixel00_loc = pix_delta_u.add(pix_delta_v).scale(0.5).add(viewport_upper_left),
+            .rng = rng.random(),
         };
+    }
+
+    fn random_f64(self: Camera) f64 {
+        return self.rng.float(f64);
+    }
+
+    fn random_ab_f64(self: Camera, a: f64, b: f64) f64 {
+        return a + (b - a) * self.rng.float(f64);
     }
 
     // pub fn render(self: Camera, world: scene.Hittable) !void {
