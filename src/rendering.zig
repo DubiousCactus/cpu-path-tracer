@@ -2,6 +2,7 @@ const std = @import("std");
 const zm = @import("zm");
 const PPMImage = @import("image.zig").PPMImage;
 const scene = @import("scene.zig");
+const math = @import("math.zig");
 
 // FIXME: Why can't I move this to the Camera struct? If I do, the output looks
 // completely wrong! Is something happening in the stack because of recursive method
@@ -16,14 +17,14 @@ fn rayColor(
     if (bounce > max_bounces) {
         return zm.Vec3.zero();
     }
-    if (object.hit(ray, Interval{ .min = 0.001, .max = std.math.inf(f64) })) |hit| {
+    if (object.hit(ray, math.Interval{ .min = 0.001, .max = std.math.inf(f64) })) |hit| {
         // INFO: For basic diffuse material, we can sample uniformly on the hemisphere defined
         // by the surface normal where the ray hit the object:
         // const random_bounce = randomHemisphereVec3(rng, hit.normal);
         // // But for true Lambertian materials, we need to weight the samples by the cosine of the angle between
         // the normal and the random direction. We can approximate this by sampling
         // uniformly from a unit sphere defined at the tip of the normal vector.
-        const random_bounce = hit.normal.add(randomUnitVec3(rng));
+        const random_bounce = hit.normal.add(math.randomUnitVec3(rng));
         return rayColor(
             object,
             Ray.init(hit.point, random_bounce),
@@ -39,51 +40,7 @@ fn rayColor(
     );
 }
 
-fn randomF64(rng: std.Random) f64 {
-    return rng.float(f64);
-}
 
-fn randomF64MinMax(rng: std.Random, a: f64, b: f64) f64 {
-    return a + (b - a) * rng.float(f64);
-}
-
-fn randomVec3(rng: std.Random) zm.Vec3 {
-    return zm.Vec3{ .data = .{
-        randomF64(rng),
-        randomF64(rng),
-        randomF64(rng),
-    } };
-}
-fn randomVec3MinMax(rng: std.Random, min: f64, max: f64) zm.Vec3 {
-    return zm.Vec3{ .data = .{
-        randomF64MinMax(rng, min, max),
-        randomF64MinMax(rng, min, max),
-        randomF64MinMax(rng, min, max),
-    } };
-}
-
-fn randomUnitVec3(rng: std.Random) zm.Vec3 {
-    // IMO, we can just do this to get a vector on the unit sphere:
-    // var vec = randomVec3MinMax(rng, -1, 1).norm();
-    // But for now I'll follow the reference implementation, because ZM doesn't handle
-    // the edge case of very small valued vectors in the norm() computation!
-    while (true) {
-        const v = randomVec3MinMax(rng, -1, 1);
-        const lensq = v.lenSq();
-        if (lensq > 1e-160 and lensq <= 1) {
-            return v.norm();
-        }
-    }
-}
-
-fn randomHemisphereVec3(rng: std.Random, surface_normal: zm.Vec3) zm.Vec3 {
-    const v = randomUnitVec3(rng);
-    if (v.dot(surface_normal) >= 0) {
-        return v;
-    } else {
-        return v.scale(-1);
-    }
-}
 
 pub const CameraParams = struct {
     img_width: u16,
@@ -160,8 +117,8 @@ pub const Camera = struct {
     }
     fn getRay(self: Camera, x: u16, y: u16) Ray {
         const sample = zm.Vec3{ .data = .{
-            randomF64MinMax(self.rng, -1, 1),
-            randomF64MinMax(self.rng, -1, 1),
+            math.randomF64MinMax(self.rng, -1, 1),
+            math.randomF64MinMax(self.rng, -1, 1),
             0,
         } };
         var local_pixel_origin = zm.Vec3{ .data = .{
@@ -222,27 +179,5 @@ pub const Ray = struct {
 
     pub fn at(self: Ray, t: f64) zm.Vec3 {
         return self.origin.add(self.dir.scale(t));
-    }
-};
-
-pub const Interval = struct {
-    // Default interval is empty, so min=inf, max=-inf
-    min: f64 = std.math.inf(f64),
-    max: f64 = -std.math.inf(f64),
-
-    pub fn size(self: Interval) f64 {
-        return self.max - self.min;
-    }
-
-    pub fn contains(self: Interval, x: f64) bool {
-        return self.min <= x and self.max >= x;
-    }
-
-    pub fn surrounds(self: Interval, x: f64) bool {
-        return self.min < x and self.max > x;
-    }
-
-    pub fn clamp(self: Interval, x: f64) f64 {
-        return std.math.clamp(x, self.min, self.max);
     }
 };

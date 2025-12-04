@@ -1,7 +1,7 @@
 const std = @import("std");
 const zm = @import("zm");
 
-const Interval = @import("render.zig").Interval;
+const Interval = @import("math.zig").Interval;
 
 fn linearToGamma(px: zm.Vec3) zm.Vec3 {
     var gamma_px = zm.Vec3.zero();

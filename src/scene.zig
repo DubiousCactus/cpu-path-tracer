@@ -1,9 +1,8 @@
 const std = @import("std");
 const zm = @import("zm");
-const render = @import("render.zig");
 
-const Ray = render.Ray;
-const Interval = render.Interval;
+const Ray = @import("rendering.zig").Ray;
+const Interval = @import("math.zig").Interval;
 
 pub fn Hits(max_count: comptime_int) type {
     if (max_count < 1) {
