@@ -40,6 +40,8 @@ pub fn build(b: *std.Build) void {
         // which requires us to specify a target.
         .target = target,
     });
+    const zm = b.dependency("zm", .{});
+    mod.addImport("zm", zm.module("zm"));
 
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
@@ -83,7 +85,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    const zm = b.dependency("zm", .{});
+    // const zm = b.dependency("zm", .{});
     exe.root_module.addImport("zm", zm.module("zm"));
 
     // This declares intent for the executable to be installed into the

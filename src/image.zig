@@ -1,7 +1,7 @@
 const std = @import("std");
 const zm = @import("zm");
 
-const render = @import("render.zig");
+const Interval = @import("render.zig").Interval;
 
 fn linearToGamma(px: zm.Vec3) zm.Vec3 {
     var gamma_px = zm.Vec3.zero();
@@ -45,7 +45,7 @@ pub const PPMImage = struct {
     }
 
     pub fn writePixelBuffered(self: *PPMImage, pixel: zm.Vec3) !void {
-        const intensity = render.Interval{ .min = 0.000, .max = 0.999 };
+        const intensity = Interval{ .min = 0.000, .max = 0.999 };
         const gamma_px = linearToGamma(pixel);
         try self.writer.interface.print("{d} {d} {d}\n", .{
             @as(u8, @intFromFloat(256 * intensity.clamp(gamma_px.data[0]))),

@@ -1,9 +1,8 @@
 const std = @import("std");
 const zm = @import("zm");
-const img = @import("image.zig");
+const PPMImage = @import("image.zig").PPMImage;
 const scene = @import("scene.zig");
 
-const PPMImage = img.PPMImage;
 
 // FIXME: Why can't I move this to the Camera struct? If I do, the output looks
 // completely wrong! Is something happening in the stack because of recursive method
