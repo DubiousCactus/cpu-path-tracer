@@ -60,6 +60,13 @@ pub fn reflect(v: zm.Vec3, normal: zm.Vec3) zm.Vec3 {
     return v.add(b.scale(2.0));
 }
 
+pub fn refract(v: zm.Vec3, normal: zm.Vec3, refractive_ratio: f64) zm.Vec3 {
+    const cos_theta = @min(normal.dot(v.scale(-1)), 1.0);
+    const v_perp = v.add(normal.scale(cos_theta)).scale(refractive_ratio);
+    const v_parall = normal.scale(-std.math.sqrt(1.0 - v_perp.lenSq()));
+    return v_perp.add(v_parall);
+}
+
 pub fn mulVec3(a: zm.Vec3, b: zm.Vec3) zm.Vec3 {
     return .{ .data = .{
         a.data[0] * b.data[0],

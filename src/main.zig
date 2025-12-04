@@ -33,6 +33,18 @@ pub fn main() !void {
             zm.Vec3{ .data = .{ 0.1, 0.4, 0.8 } },
         ),
     ), allocator);
+    // Glass sphere (made of one outer glass sphere, one inner air sphere)
+    const glass_sphere_pos = zm.Vec3{ .data = .{ -0.8, -0.2, -0.75 } };
+    try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
+        glass_sphere_pos,
+        0.15,
+        ray_tracer.material.Dielectric.init(1.5), // Index of glass
+    ), allocator);
+    try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
+        glass_sphere_pos,
+        0.10,
+        ray_tracer.material.Dielectric.init(1.0 / 1.5), // Index of air over glass
+    ), allocator);
     // Metallic sphere 1:
     try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
         zm.Vec3{ .data = .{ -1.2, 0, -1.5 } },
