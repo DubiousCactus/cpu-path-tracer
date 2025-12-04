@@ -9,10 +9,13 @@ pub fn main() !void {
     var camera = ray_tracer.Camera.init(.{
         .img_width = 640,
         .img_aspect_ratio = 16.0 / 9.0,
-        .focal_len = 1.0,
-        .eye_pos = zm.Vec3{ .data = .{ 0, 0, 0 } },
-        .viewport_height = 2.0,
-        .samples_per_pixel = 100,
+        .vfov = 30,
+        .look_from = zm.Vec3{ .data = .{ -2, 2, 1 } },
+        .look_at = zm.Vec3{ .data = .{ 0, 0, -1 } },
+        .samples_per_pixel = 512,
+        .max_bounces = 50,
+        .defocus_angle = 10,
+        .focus_dist = 3.4,
     });
 
     var img = try ray_tracer.PPMImage.init(

@@ -47,6 +47,19 @@ pub fn randomHemisphereVec3(rng: std.Random, surface_normal: zm.Vec3) zm.Vec3 {
     }
 }
 
+pub fn randomVec3InUnitDisk(rng: std.Random) zm.Vec3 {
+    while (true) {
+        const v = zm.Vec3{ .data = .{
+            randomF64MinMax(rng, -1, 1),
+            randomF64MinMax(rng, -1, 1),
+            0,
+        } };
+        if (v.lenSq() < 1) {
+            return v;
+        }
+    }
+}
+
 pub fn isVec3NearZero(v: zm.Vec3) bool {
     const tol = 3 * std.math.floatEps(f64);
     return (std.math.approxEqAbs(f64, v.data[0], 0, tol) and

@@ -8,16 +8,23 @@ pub const CameraParams = struct {
     img_width: u16,
     img_height: ?u16 = null,
     img_aspect_ratio: ?f16 = null,
-    focal_len: f64 = 1.0,
-    eye_pos: zm.Vec3 = zm.Vec3{ .data = .{ 0, 0, 0 } },
-    viewport_height: f64 = 2.0,
+    vfov: f32, // Degrees
     samples_per_pixel: u16 = 10,
     max_bounces: u16 = 10,
+
+    look_from: zm.Vec3 = zm.Vec3{ .data = .{ 0, 0, 0 } },
+    look_at: zm.Vec3 = zm.Vec3{ .data = .{ 0, 0, -1 } },
+    v_up: zm.Vec3 = zm.Vec3{ .data = .{ 0, 1, 0 } }, // Camera-relative up vector
+
+    focus_dist: f32 = 10, // Distance from camera to focus plane
+    defocus_angle: f32 = 0, // Variation angle of rays through each pixel
 };
 
 pub const Camera = struct {
     params: CameraParams,
-    front_vec: zm.Vec3,
+    u: zm.Vec3,
+    v: zm.Vec3,
+    w: zm.Vec3,
 
     img_width: u16,
     img_height: u16,
@@ -31,6 +38,9 @@ pub const Camera = struct {
     pixel_delta_v: zm.Vec3,
     pixel00_loc: zm.Vec3,
 
+    defocus_disk_u: zm.Vec3,
+    defocus_disk_v: zm.Vec3,
+
     rng: std.Random.DefaultPrng,
 
     pub fn init(params: CameraParams) Camera {
@@ -43,42 +53,61 @@ pub const Camera = struct {
             )));
         } else {
             unreachable;
-            // @compileError("Either img_height or img_aspect_ratio must be passed to Camera.init()\n");
         }
-        const cam_front = params.eye_pos.sub(
-            zm.Vec3{ .data = .{ 0, 0, params.focal_len } },
-        ); // Remember cam_front is *negative* Z, so it's eye - vec3(0, 0, flen)!
-        const viewport_width = params.viewport_height * (@as(
+        const w = params.look_from.sub(params.look_at).norm();
+        const u = params.v_up.crossRH(w).norm();
+        const v = w.crossRH(u);
+        const vfov_rad = std.math.degreesToRadians(params.vfov);
+        const viewport_height = 2.0 * std.math.tan(vfov_rad / 2.0) * params.focus_dist;
+        const viewport_width = viewport_height * (@as(
             f64,
             @floatFromInt(params.img_width),
         ) / @as(f64, @floatFromInt(height)));
-        const viewport_u = zm.Vec3{ .data = .{ viewport_width, 0, 0 } };
-        const viewport_v = zm.Vec3{ .data = .{ 0, -params.viewport_height, 0 } }; // Image plane is inverted!
-        const viewport_upper_left = cam_front.sub(
+        const viewport_u = u.scale(viewport_width);
+        const viewport_v = v.scale(-viewport_height); // Image plane is inverted!
+        const viewport_upper_left = params.look_from.sub(w.scale(params.focus_dist)).sub(
             viewport_u.scale(0.5),
         ).sub(viewport_v.scale(0.5)); // We offset the first pixel by half the inter-pixel distance
         const pix_delta_u = viewport_u.scale(1 / @as(f64, @floatFromInt(params.img_width)));
         const pix_delta_v = viewport_v.scale(1 / @as(f64, @floatFromInt(height)));
+        const pixel00_loc = pix_delta_u.add(pix_delta_v).scale(0.5).add(viewport_upper_left);
+        const defocus_radius = params.focus_dist * std.math.tan(
+            std.math.degreesToRadians(params.defocus_angle / 2.0),
+        );
+        const defocus_disk_u = u.scale(defocus_radius);
+        const defocus_disk_v = v.scale(defocus_radius);
         return .{
             .img_width = params.img_width,
             .img_height = height,
             .params = params,
-            .front_vec = cam_front,
+            .u = u,
+            .v = v,
+            .w = w,
             .viewport_width = viewport_width,
             .viewport_u = viewport_u,
             .viewport_v = viewport_v,
             .pixel_delta_u = pix_delta_u,
             .pixel_delta_v = pix_delta_v,
             .viewport_upper_left = viewport_upper_left,
-            .pixel00_loc = pix_delta_u.add(pix_delta_v).scale(0.5).add(viewport_upper_left),
+            .pixel00_loc = pixel00_loc,
             .rng = std.Random.DefaultPrng.init(
                 @as(u64, @bitCast(std.time.milliTimestamp())),
             ),
+            .defocus_disk_u = defocus_disk_u,
+            .defocus_disk_v = defocus_disk_v,
         };
     }
     fn getRay(self: *Camera, x: u16, y: u16) Ray {
         const random_if = self.rng.random();
-        const sample = zm.Vec3{ .data = .{
+        // Sample a random ray origin on the defocus disk
+        var ray_origin = self.params.look_from;
+        if (self.params.defocus_angle > 0) {
+            const disk_sample = math.randomVec3InUnitDisk(random_if);
+            ray_origin.addAssign(self.defocus_disk_u.scale(disk_sample.data[0]));
+            ray_origin.addAssign(self.defocus_disk_v.scale(disk_sample.data[1]));
+        }
+        // Pick a random location around the pixel center (x,y)
+        const unit_square_sample = zm.Vec3{ .data = .{
             math.randomF64MinMax(random_if, -1, 1),
             math.randomF64MinMax(random_if, -1, 1),
             0,
@@ -88,13 +117,13 @@ pub const Camera = struct {
             @floatFromInt(y),
             0,
         } };
-        local_pixel_origin.addAssign(sample);
+        local_pixel_origin.addAssign(unit_square_sample);
 
         const pixel_center = self.pixel00_loc.add(
             self.pixel_delta_u.scale(local_pixel_origin.data[0]),
         ).add(self.pixel_delta_v.scale(local_pixel_origin.data[1]));
-        const ray_direction = pixel_center.sub(self.params.eye_pos);
-        return Ray.init(self.params.eye_pos, ray_direction);
+        const ray_direction = pixel_center.sub(ray_origin);
+        return Ray.init(ray_origin, ray_direction);
     }
 
     fn rayColor(
