@@ -4,43 +4,6 @@ const PPMImage = @import("image.zig").PPMImage;
 const scene = @import("scene.zig");
 const math = @import("math.zig");
 
-// FIXME: Why can't I move this to the Camera struct? If I do, the output looks
-// completely wrong! Is something happening in the stack because of recursive method
-// calls??
-fn rayColor(
-    object: scene.Hittable,
-    ray: Ray,
-    rng: std.Random,
-    bounce: u16,
-    max_bounces: u16,
-) zm.Vec3 {
-    if (bounce > max_bounces) {
-        return zm.Vec3.zero();
-    }
-    if (object.hit(ray, math.Interval{ .min = 0.001, .max = std.math.inf(f64) })) |hit| {
-        if (hit.material.scatter(
-            rng,
-            ray,
-            hit,
-        )) |scattering| {
-            return math.mulVec3(rayColor(
-                object,
-                Ray.init(hit.point, scattering.ray.dir),
-                rng,
-                bounce + 1,
-                max_bounces,
-            ), scattering.attenuation);
-        } else {
-            return zm.Vec3.zero();
-        }
-    }
-    return zm.Vec3.lerp(
-        zm.Vec3{ .data = .{ 1, 1, 1 } },
-        zm.Vec3{ .data = .{ 0.5, 0.7, 1 } },
-        0.5 * (ray.dir.data[1] + 1.0),
-    );
-}
-
 pub const CameraParams = struct {
     img_width: u16,
     img_height: ?u16 = null,
@@ -68,7 +31,7 @@ pub const Camera = struct {
     pixel_delta_v: zm.Vec3,
     pixel00_loc: zm.Vec3,
 
-    rng: std.Random,
+    rng: std.Random.DefaultPrng,
 
     pub fn init(params: CameraParams) Camera {
         var height: u16 = 0;
@@ -96,9 +59,6 @@ pub const Camera = struct {
         ).sub(viewport_v.scale(0.5)); // We offset the first pixel by half the inter-pixel distance
         const pix_delta_u = viewport_u.scale(1 / @as(f64, @floatFromInt(params.img_width)));
         const pix_delta_v = viewport_v.scale(1 / @as(f64, @floatFromInt(height)));
-        var rng = std.Random.DefaultPrng.init(
-            @as(u64, @intCast(@max(0, std.time.timestamp()))),
-        );
         return .{
             .img_width = params.img_width,
             .img_height = height,
@@ -111,13 +71,16 @@ pub const Camera = struct {
             .pixel_delta_v = pix_delta_v,
             .viewport_upper_left = viewport_upper_left,
             .pixel00_loc = pix_delta_u.add(pix_delta_v).scale(0.5).add(viewport_upper_left),
-            .rng = rng.random(),
+            .rng = std.Random.DefaultPrng.init(
+                @as(u64, @bitCast(std.time.milliTimestamp())),
+            ),
         };
     }
-    fn getRay(self: Camera, x: u16, y: u16) Ray {
+    fn getRay(self: *Camera, x: u16, y: u16) Ray {
+        const random_if = self.rng.random();
         const sample = zm.Vec3{ .data = .{
-            math.randomF64MinMax(self.rng, -1, 1),
-            math.randomF64MinMax(self.rng, -1, 1),
+            math.randomF64MinMax(random_if, -1, 1),
+            math.randomF64MinMax(random_if, -1, 1),
             0,
         } };
         var local_pixel_origin = zm.Vec3{ .data = .{
@@ -134,7 +97,37 @@ pub const Camera = struct {
         return Ray.init(self.params.eye_pos, ray_direction);
     }
 
-    pub fn render(self: Camera, world: scene.Hittable, image: *PPMImage) !void {
+    fn rayColor(
+        self: *Camera,
+        object: scene.Hittable,
+        ray: Ray,
+        bounce: u16,
+    ) zm.Vec3 {
+        if (bounce > self.params.max_bounces) {
+            return zm.Vec3.zero();
+        } else if (object.hit(ray, math.Interval{ .min = 0.001, .max = std.math.inf(f64) })) |hit| {
+            if (hit.material.scatter(
+                self.rng.random(),
+                ray,
+                hit,
+            )) |scattering| {
+                return math.mulVec3(self.rayColor(
+                    object,
+                    Ray.init(hit.point, scattering.ray.dir),
+                    bounce + 1,
+                ), scattering.attenuation);
+            } else {
+                return zm.Vec3.zero();
+            }
+        } else {
+            return zm.Vec3.lerp(
+                zm.Vec3{ .data = .{ 1, 1, 1 } },
+                zm.Vec3{ .data = .{ 0.5, 0.7, 1 } },
+                0.5 * (ray.dir.data[1] + 1.0),
+            );
+        }
+    }
+    pub fn render(self: *Camera, world: scene.Hittable, image: *PPMImage) !void {
         var progress = std.Progress.start(
             .{ .estimated_total_items = self.img_height, .root_name = "Tracing light paths..." },
         );
@@ -142,15 +135,13 @@ pub const Camera = struct {
             for (0..self.img_width) |i| {
                 var c = zm.Vec3.zero();
                 for (0..self.params.samples_per_pixel) |_| {
-                    c.addAssign(rayColor(
+                    c.addAssign(self.rayColor(
                         world,
                         self.getRay(
                             @as(u16, @intCast(i)),
                             @as(u16, @intCast(j)),
                         ),
-                        self.rng,
                         0,
-                        self.params.max_bounces,
                     ));
                 }
                 try image.writePixelBuffered(

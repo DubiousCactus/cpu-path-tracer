@@ -6,7 +6,7 @@ pub fn main() !void {
     var gpa = std.heap.DebugAllocator(.{}).init;
     const allocator = gpa.allocator();
 
-    const camera = ray_tracer.Camera.init(.{
+    var camera = ray_tracer.Camera.init(.{
         .img_width = 400,
         .img_aspect_ratio = 16.0 / 9.0,
         .focal_len = 1.0,
