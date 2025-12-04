@@ -23,22 +23,22 @@ pub fn main() !void {
     );
     defer img.deinit(allocator);
 
-    var world = ray_tracer.scene.Hittable{
-        .hittable_group = ray_tracer.scene.HittableGroup{},
-    };
+    var world = ray_tracer.scene.HittableGroup.init();
     defer world.hittable_group.deinit(allocator);
-    try world.hittable_group.addOne(ray_tracer.scene.Hittable{
-        .sphere = ray_tracer.scene.Sphere{
-            .radius = 0.5,
-            .origin = zm.Vec3{ .data = .{ 0, 0, -1 } },
-        },
-    }, allocator);
-    try world.hittable_group.addOne(ray_tracer.scene.Hittable{
-        .sphere = ray_tracer.scene.Sphere{
-            .radius = 100,
-            .origin = zm.Vec3{ .data = .{ 0, -100.5, -1 } },
-        },
-    }, allocator);
+    try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
+        zm.Vec3{ .data = .{ 0, 0, -1 } },
+        0.5,
+        ray_tracer.material.Lambertian.init(
+            zm.Vec3{ .data = .{ 0.1, 0.4, 0.8 } },
+        ),
+    ), allocator);
+    try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
+        zm.Vec3{ .data = .{ 0, -100.5, -1 } },
+        100,
+        ray_tracer.material.Lambertian.init(
+            zm.Vec3{ .data = .{ 0.4, 0.2, 0.05 } },
+        ),
+    ), allocator);
 
     try camera.render(world, &img);
 }

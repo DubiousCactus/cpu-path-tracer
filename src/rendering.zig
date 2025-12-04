@@ -18,20 +18,21 @@ fn rayColor(
         return zm.Vec3.zero();
     }
     if (object.hit(ray, math.Interval{ .min = 0.001, .max = std.math.inf(f64) })) |hit| {
-        // INFO: For basic diffuse material, we can sample uniformly on the hemisphere defined
-        // by the surface normal where the ray hit the object:
-        // const random_bounce = randomHemisphereVec3(rng, hit.normal);
-        // // But for true Lambertian materials, we need to weight the samples by the cosine of the angle between
-        // the normal and the random direction. We can approximate this by sampling
-        // uniformly from a unit sphere defined at the tip of the normal vector.
-        const random_bounce = hit.normal.add(math.randomUnitVec3(rng));
-        return rayColor(
-            object,
-            Ray.init(hit.point, random_bounce),
+        if (hit.material.scatter(
             rng,
-            bounce + 1,
-            max_bounces,
-        ).scale(0.5);
+            ray,
+            hit,
+        )) |scattering| {
+            return math.mulVec3(rayColor(
+                object,
+                Ray.init(hit.point, scattering.ray.dir),
+                rng,
+                bounce + 1,
+                max_bounces,
+            ), scattering.attenuation);
+        } else {
+            return zm.Vec3.zero();
+        }
     }
     return zm.Vec3.lerp(
         zm.Vec3{ .data = .{ 1, 1, 1 } },
@@ -39,8 +40,6 @@ fn rayColor(
         0.5 * (ray.dir.data[1] + 1.0),
     );
 }
-
-
 
 pub const CameraParams = struct {
     img_width: u16,

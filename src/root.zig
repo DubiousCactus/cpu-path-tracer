@@ -18,3 +18,4 @@ pub const universe_interval = math.Interval{
 
 pub const scene = @import("scene.zig");
 pub const PPMImage = @import("image.zig").PPMImage;
+pub const material = @import("material.zig");

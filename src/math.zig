@@ -47,6 +47,26 @@ pub fn randomHemisphereVec3(rng: std.Random, surface_normal: zm.Vec3) zm.Vec3 {
     }
 }
 
+pub fn isVec3NearZero(v: zm.Vec3) bool {
+    const tol = 3 * std.math.floatEps(f64);
+    return (std.math.approxEqAbs(f64, v.data[0], 0, tol) and
+        std.math.approxEqAbs(f64, v.data[1], 0, tol) and
+        std.math.approxEqAbs(f64, v.data[2], 0, tol));
+}
+
+pub fn reflect(v: zm.Vec3, normal: zm.Vec3) zm.Vec3 {
+    const v_proj_n = -v.dot(normal);
+    const b = normal.scale(v_proj_n);
+    return v.add(b.scale(2.0));
+}
+
+pub fn mulVec3(a: zm.Vec3, b: zm.Vec3) zm.Vec3 {
+    return .{ .data = .{
+        a.data[0] * b.data[0],
+        a.data[1] * b.data[1],
+        a.data[2] * b.data[2],
+    } };
+}
 
 pub const Interval = struct {
     // Default interval is empty, so min=inf, max=-inf

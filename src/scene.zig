@@ -3,6 +3,7 @@ const zm = @import("zm");
 
 const Ray = @import("rendering.zig").Ray;
 const Interval = @import("math.zig").Interval;
+const Material = @import("material.zig").Material;
 
 pub fn Hits(max_count: comptime_int) type {
     if (max_count < 1) {
@@ -30,6 +31,7 @@ pub const Hit = struct {
     normal: zm.Vec3,
     at: f64,
     is_front_face: bool,
+    material: Material,
 };
 
 pub const Hittable = union(enum) {
@@ -45,6 +47,10 @@ pub const Hittable = union(enum) {
 
 pub const HittableGroup = struct {
     objects: std.ArrayList(Hittable) = std.ArrayList(Hittable).empty,
+
+    pub fn init() Hittable {
+        return Hittable{ .hittable_group = HittableGroup{} };
+    }
 
     pub fn addOne(
         self: *HittableGroup,
@@ -79,6 +85,15 @@ pub const HittableGroup = struct {
 pub const Sphere = struct {
     origin: zm.Vec3,
     radius: f64,
+    material: Material,
+
+    pub fn init(origin: zm.Vec3, radius: f64, material: Material) Hittable {
+        return Hittable{ .sphere = Sphere{
+            .origin = origin,
+            .radius = radius,
+            .material = material,
+        } };
+    }
 
     pub fn hit(self: Sphere, ray: Ray, ray_t: Interval) ?Hit {
         const oc = self.origin.sub(ray.origin);
@@ -105,6 +120,7 @@ pub const Sphere = struct {
             .normal = face_normal,
             .at = root,
             .is_front_face = is_front_face,
+            .material = self.material,
         };
     }
 
