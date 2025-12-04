@@ -7,7 +7,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     var camera = ray_tracer.Camera.init(.{
-        .img_width = 400,
+        .img_width = 640,
         .img_aspect_ratio = 16.0 / 9.0,
         .focal_len = 1.0,
         .eye_pos = zm.Vec3{ .data = .{ 0, 0, 0 } },
@@ -25,6 +25,7 @@ pub fn main() !void {
 
     var world = ray_tracer.scene.HittableGroup.init();
     defer world.hittable_group.deinit(allocator);
+    // Main Lambertian sphere:
     try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
         zm.Vec3{ .data = .{ 0, 0, -1 } },
         0.5,
@@ -32,6 +33,25 @@ pub fn main() !void {
             zm.Vec3{ .data = .{ 0.1, 0.4, 0.8 } },
         ),
     ), allocator);
+    // Metallic sphere 1:
+    try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
+        zm.Vec3{ .data = .{ -1.2, 0, -1.5 } },
+        0.5,
+        ray_tracer.material.Metallic.init(
+            zm.Vec3{ .data = .{ 0.8, 0.8, 0.8 } },
+            0,
+        ),
+    ), allocator);
+    // Metallic sphere 2:
+    try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
+        zm.Vec3{ .data = .{ 0.9, -0.1, -0.9 } },
+        0.3,
+        ray_tracer.material.Metallic.init(
+            zm.Vec3{ .data = .{ 0.3, 0.9, 0.09 } },
+            0.1,
+        ),
+    ), allocator);
+    // Ground:
     try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
         zm.Vec3{ .data = .{ 0, -100.5, -1 } },
         100,

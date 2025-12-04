@@ -12,7 +12,7 @@ pub const Scattering = struct {
 pub const Material = union(enum) {
     diffuse: Diffuse,
     lambertian: Lambertian,
-    metal: Metal,
+    metal: Metallic,
 
     pub fn scatter(self: Material, rng: std.Random, in_ray: Ray, hit: Hit) ?Scattering {
         switch (self) {
@@ -75,25 +75,32 @@ pub const Lambertian = struct {
     }
 };
 
-pub const Metal = struct {
+pub const Metallic = struct {
     albedo: zm.Vec3,
+    fuzz: f64,
 
-    pub fn init(albedo: zm.Vec3) Material {
-        return Material{ .metal = Metal{ .albedo = albedo } };
+    pub fn init(albedo: zm.Vec3, fuzz: f64) Material {
+        return Material{ .metal = Metallic{
+            .albedo = albedo,
+            .fuzz = fuzz,
+        } };
     }
 
     pub fn scatter(
-        self: Metal,
+        self: Metallic,
         rng: std.Random,
         in_ray: Ray,
         hit: Hit,
     ) ?Scattering {
-        _ = rng;
+        var scattered_dir = math.reflect(in_ray.dir, hit.normal);
+        if (self.fuzz > 0) {
+            scattered_dir = scattered_dir.norm().add(math.randomUnitVec3(rng).scale(self.fuzz));
+            if (scattered_dir.dot(hit.normal) <= 0) {
+                return null;
+            }
+        }
         return .{
-            .ray = Ray.init(
-                hit.point,
-                math.reflect(in_ray.dir, hit.normal),
-            ),
+            .ray = Ray.init(hit.point, scattered_dir),
             .attenuation = self.albedo,
         };
     }
