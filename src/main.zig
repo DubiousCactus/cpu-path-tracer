@@ -14,13 +14,18 @@ pub fn main() !void {
         .viewport_height = 2.0,
         .samples_per_pixel = 100,
     });
-    // const empty_interval = render.Interval{ .min = std.math.inf, .max = -std.math.inf};
-    // const universe_interval = render.Interval{ .min = -std.math.inf, .max = std.math.inf};
 
-    var img = try ray_tracer.PPMImage.init("image.ppm", camera.img_width, camera.img_height, allocator);
+    var img = try ray_tracer.PPMImage.init(
+        "image.ppm",
+        camera.img_width,
+        camera.img_height,
+        allocator,
+    );
     defer img.deinit(allocator);
 
-    var world = ray_tracer.scene.Hittable{ .hittable_group = ray_tracer.scene.HittableGroup{} };
+    var world = ray_tracer.scene.Hittable{
+        .hittable_group = ray_tracer.scene.HittableGroup{},
+    };
     defer world.hittable_group.deinit(allocator);
     try world.hittable_group.addOne(ray_tracer.scene.Hittable{
         .sphere = ray_tracer.scene.Sphere{

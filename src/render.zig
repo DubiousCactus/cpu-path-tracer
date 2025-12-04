@@ -3,11 +3,16 @@ const zm = @import("zm");
 const PPMImage = @import("image.zig").PPMImage;
 const scene = @import("scene.zig");
 
-
 // FIXME: Why can't I move this to the Camera struct? If I do, the output looks
 // completely wrong! Is something happening in the stack because of recursive method
 // calls??
-fn rayColor(object: scene.Hittable, ray: Ray, rng: std.Random, bounce: u16, max_bounces: u16) zm.Vec3 {
+fn rayColor(
+    object: scene.Hittable,
+    ray: Ray,
+    rng: std.Random,
+    bounce: u16,
+    max_bounces: u16,
+) zm.Vec3 {
     if (bounce > max_bounces) {
         return zm.Vec3.zero();
     }
@@ -114,7 +119,9 @@ pub const Camera = struct {
         if (params.img_height) |h| {
             height = h;
         } else if (params.img_aspect_ratio) |ratio| {
-            height = @max(1, @as(u16, @intFromFloat(@as(f32, @floatFromInt(params.img_width)) / ratio)));
+            height = @max(1, @as(u16, @intFromFloat(
+                @as(f32, @floatFromInt(params.img_width)) / ratio,
+            )));
         } else {
             unreachable;
             // @compileError("Either img_height or img_aspect_ratio must be passed to Camera.init()\n");

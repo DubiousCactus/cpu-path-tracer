@@ -47,7 +47,11 @@ pub const Hittable = union(enum) {
 pub const HittableGroup = struct {
     objects: std.ArrayList(Hittable) = std.ArrayList(Hittable).empty,
 
-    pub fn addOne(self: *HittableGroup, object: Hittable, gpa: std.mem.Allocator) !void {
+    pub fn addOne(
+        self: *HittableGroup,
+        object: Hittable,
+        gpa: std.mem.Allocator,
+    ) !void {
         try self.objects.append(gpa, object);
     }
 
@@ -60,7 +64,10 @@ pub const HittableGroup = struct {
         var closest_so_far = ray_t.max;
 
         for (self.objects.items) |obj| {
-            if (obj.hit(ray, Interval{ .min = ray_t.min, .max = closest_so_far })) |current_hit| {
+            if (obj.hit(
+                ray,
+                Interval{ .min = ray_t.min, .max = closest_so_far },
+            )) |current_hit| {
                 last_hit = current_hit;
                 closest_so_far = current_hit.at;
             }
@@ -93,9 +100,10 @@ pub const Sphere = struct {
         const p = ray.at(root);
         const outward_normal = p.sub(self.origin).scale(1 / self.radius);
         const is_front_face = ray.dir.dot(outward_normal) <= 0;
+        const face_normal = if (is_front_face) outward_normal else outward_normal.scale(-1);
         return .{
             .point = p,
-            .normal = if (is_front_face) outward_normal else outward_normal.scale(-1),
+            .normal = face_normal,
             .at = root,
             .is_front_face = is_front_face,
         };

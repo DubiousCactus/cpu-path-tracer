@@ -19,7 +19,12 @@ pub const PPMImage = struct {
     buffer: []u8,
     writer: std.fs.File.Writer,
 
-    pub fn init(name: []const u8, width: u16, height: u16, allocator: std.mem.Allocator) !PPMImage {
+    pub fn init(
+        name: []const u8,
+        width: u16,
+        height: u16,
+        allocator: std.mem.Allocator,
+    ) !PPMImage {
         const file = try std.fs.cwd().createFile(name, .{});
         const buf = try allocator.alloc(u8, width);
         var image = PPMImage{
