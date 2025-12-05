@@ -4,7 +4,7 @@ const rendering = @import("rendering.zig");
 pub const Camera = rendering.Camera;
 pub const CameraParams = rendering.CameraParams;
 
-const math = @import("math.zig");
+pub const math = @import("math.zig");
 pub const Interval = math.Interval;
 
 pub const empty_interval = math.Interval{
