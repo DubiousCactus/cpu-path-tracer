@@ -12,16 +12,17 @@ pub fn main() !void {
         .vfov = 30,
         .look_from = zm.Vec3{ .data = .{ 13, 2, 3 } },
         .look_at = zm.Vec3{ .data = .{ 0, 0, 0 } },
-        .samples_per_pixel = 512,
+        .samples_per_pixel = 128,
         .max_bounces = 50,
         .defocus_angle = 0.6,
         .focus_dist = 10.0,
     });
 
-    var img = try ray_tracer.PPMImage.init(
+    var img = try ray_tracer.Image.init(
         "image.ppm",
         camera.img_width,
         camera.img_height,
+        3,
         allocator,
     );
     defer img.deinit(allocator);
@@ -116,5 +117,8 @@ pub fn main() !void {
         }
     }
 
-    try camera.render(world, &img);
+    try camera.render(world, &img, allocator);
+    std.debug.print("Saving image as {s}...\n", .{img.file_name});
+    try img.save();
+    std.debug.print("Done!\n", .{});
 }

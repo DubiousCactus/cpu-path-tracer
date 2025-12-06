@@ -1,6 +1,6 @@
 const std = @import("std");
 const zm = @import("zm");
-const PPMImage = @import("image.zig").PPMImage;
+const Image = @import("image.zig").Image;
 const scene = @import("scene.zig");
 const math = @import("math.zig");
 
@@ -156,31 +156,62 @@ pub const Camera = struct {
             );
         }
     }
-    pub fn render(self: *Camera, world: scene.Hittable, image: *PPMImage) !void {
-        var progress = std.Progress.start(
-            .{ .estimated_total_items = self.img_height, .root_name = "Tracing light paths..." },
+
+    fn renderPixel(
+        self: *Camera,
+        image: *Image,
+        world: scene.Hittable,
+        x: usize,
+        y: usize,
+        progress: std.Progress.Node,
+    ) void {
+        var c = zm.Vec3.zero();
+        for (0..self.params.samples_per_pixel) |_| {
+            c.addAssign(self.rayColor(
+                world,
+                self.getRay(
+                    @as(u16, @intCast(x)),
+                    @as(u16, @intCast(y)),
+                ),
+                0,
+            ));
+        }
+        image.write(
+            @as(u16, @intCast(x)),
+            @as(u16, @intCast(y)),
+            c.scale(1 / @as(f64, @floatFromInt(self.params.samples_per_pixel))),
         );
+        progress.completeOne();
+    }
+
+    pub fn render(
+        self: *Camera,
+        world: scene.Hittable,
+        image: *Image,
+        allocator: std.mem.Allocator,
+    ) !void {
+        var progress = std.Progress.start(
+            .{
+                .estimated_total_items = self.img_height * self.img_width,
+                .root_name = "Tracing light paths...",
+            },
+        );
+        var thread_pool: std.Thread.Pool = undefined;
+        try thread_pool.init(.{ .n_jobs = 8, .allocator = allocator });
+        errdefer thread_pool.deinit();
         for (0..self.img_height) |j| {
             for (0..self.img_width) |i| {
-                var c = zm.Vec3.zero();
-                for (0..self.params.samples_per_pixel) |_| {
-                    c.addAssign(self.rayColor(
-                        world,
-                        self.getRay(
-                            @as(u16, @intCast(i)),
-                            @as(u16, @intCast(j)),
-                        ),
-                        0,
-                    ));
-                }
-                try image.writePixelBuffered(
-                    c.scale(1 / @as(f64, @floatFromInt(self.params.samples_per_pixel))),
-                );
+                try thread_pool.spawn(Camera.renderPixel, .{
+                    self,
+                    image,
+                    world,
+                    i,
+                    j,
+                    progress,
+                });
             }
-            try image.flush();
-            progress.completeOne();
         }
-        try image.flush();
+        thread_pool.deinit();
         progress.end();
     }
 };

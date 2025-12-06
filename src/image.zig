@@ -40,9 +40,6 @@ pub const PPMImage = struct {
         return image;
     }
 
-    pub fn writerInterface(self: *PPMImage) *std.Io.Writer {
-        return @constCast(&(self.file.writer(&self.buffer).interface));
-    }
     pub fn deinit(self: *PPMImage, allocator: std.mem.Allocator) void {
         self.writer.interface.flush() catch {};
         allocator.free(self.buffer);
@@ -61,5 +58,96 @@ pub const PPMImage = struct {
 
     pub fn flush(self: *PPMImage) !void {
         try self.writer.interface.flush();
+    }
+};
+
+pub const ImageFile = union(enum) {
+    ppm: PPMImage,
+
+    pub fn writePixelBuffered(self: *ImageFile, pixel: zm.Vec3) !void {
+        switch (self.*) {
+            .ppm => |_| try self.ppm.writePixelBuffered(pixel),
+        }
+    }
+    pub fn flush(self: *ImageFile) !void {
+        switch (self.*) {
+            .ppm => |_| try self.ppm.flush(),
+        }
+    }
+
+    pub fn deinit(self: *ImageFile, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .ppm => |_| {
+                self.ppm.deinit(allocator);
+            },
+        }
+    }
+};
+
+pub const Image = struct {
+    buffer: []f64,
+    width: u16,
+    height: u16,
+    channels: u16,
+    file_name: []const u8,
+    image_file: ImageFile,
+
+    pub fn init(
+        file_name: []const u8,
+        width: u16,
+        height: u16,
+        channels: u16,
+        allocator: std.mem.Allocator,
+    ) !Image {
+        const buf = try allocator.alloc(f64, @as(u32, @intCast(width)) * @as(u32, @intCast(height)) * @as(u32, @intCast(channels)));
+        return .{
+            .buffer = buf,
+            .width = width,
+            .height = height,
+            .channels = channels,
+            .file_name = file_name,
+            .image_file = ImageFile{ .ppm = try PPMImage.init(
+                file_name,
+                width,
+                height,
+                allocator,
+            ) },
+        };
+    }
+
+    fn getBufferIndex(self: Image, x: u16, y: u16, c: u16) usize {
+        var i = @as(u32, @intCast(y)) * @as(u32, @intCast(self.width)) * @as(u32, @intCast(self.channels));
+        i += @as(u32, @intCast(x)) * @as(u32, @intCast(self.channels));
+        i += @as(u32, @intCast(c));
+        return @as(usize, @intCast(i));
+    }
+
+    pub fn write(self: *Image, x: u16, y: u16, c: zm.Vec3) void {
+        self.buffer[self.getBufferIndex(x, y, 0)] = c.data[0];
+        self.buffer[self.getBufferIndex(x, y, 1)] = c.data[1];
+        self.buffer[self.getBufferIndex(x, y, 2)] = c.data[2];
+    }
+
+    pub fn deinit(self: *Image, allocator: std.mem.Allocator) void {
+        self.image_file.deinit(allocator);
+        allocator.free(self.buffer);
+    }
+
+    pub fn save(self: *Image) !void {
+        var x: u16 = undefined;
+        var y: u16 = undefined;
+        for (0..self.height) |j| {
+            for (0..self.width) |i| {
+                x = @as(u16, @intCast(i));
+                y = @as(u16, @intCast(j));
+                try self.image_file.writePixelBuffered(zm.Vec3{ .data = .{
+                    self.buffer[self.getBufferIndex(x, y, 0)],
+                    self.buffer[self.getBufferIndex(x, y, 1)],
+                    self.buffer[self.getBufferIndex(x, y, 2)],
+                } });
+            }
+            try self.image_file.flush();
+        }
+        try self.image_file.flush();
     }
 };
