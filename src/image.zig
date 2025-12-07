@@ -115,17 +115,15 @@ pub const Image = struct {
         };
     }
 
-    fn getBufferIndex(self: Image, x: u16, y: u16, c: u16) usize {
+    fn getBufferIndex(self: Image, x: u16, y: u16) usize {
         var i = @as(u32, @intCast(y)) * @as(u32, @intCast(self.width)) * @as(u32, @intCast(self.channels));
         i += @as(u32, @intCast(x)) * @as(u32, @intCast(self.channels));
-        i += @as(u32, @intCast(c));
         return @as(usize, @intCast(i));
     }
 
     pub fn write(self: *Image, x: u16, y: u16, c: zm.Vec3) void {
-        self.buffer[self.getBufferIndex(x, y, 0)] = c.data[0];
-        self.buffer[self.getBufferIndex(x, y, 1)] = c.data[1];
-        self.buffer[self.getBufferIndex(x, y, 2)] = c.data[2];
+        const i: usize = self.getBufferIndex(x, y);
+        @memcpy(self.buffer[i .. i + 3], c.data[0..c.data.len]);
     }
 
     pub fn deinit(self: *Image, allocator: std.mem.Allocator) void {
@@ -136,15 +134,13 @@ pub const Image = struct {
     pub fn save(self: *Image) !void {
         var x: u16 = undefined;
         var y: u16 = undefined;
+        var buf_i: usize = undefined;
         for (0..self.height) |j| {
             for (0..self.width) |i| {
                 x = @as(u16, @intCast(i));
                 y = @as(u16, @intCast(j));
-                try self.image_file.writePixelBuffered(zm.Vec3{ .data = .{
-                    self.buffer[self.getBufferIndex(x, y, 0)],
-                    self.buffer[self.getBufferIndex(x, y, 1)],
-                    self.buffer[self.getBufferIndex(x, y, 2)],
-                } });
+                buf_i = self.getBufferIndex(x, y);
+                try self.image_file.writePixelBuffered(zm.Vec3{ .data = self.buffer[buf_i..][0..3].* });
             }
             try self.image_file.flush();
         }
