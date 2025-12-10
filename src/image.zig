@@ -99,7 +99,10 @@ pub const Image = struct {
         channels: u16,
         allocator: std.mem.Allocator,
     ) !Image {
-        const buf = try allocator.alloc(f64, @as(u32, @intCast(width)) * @as(u32, @intCast(height)) * @as(u32, @intCast(channels)));
+        const buf = try allocator.alloc(
+            f64,
+            @as(u32, @intCast(width)) * @as(u32, @intCast(height)) * @as(u32, @intCast(channels)),
+        );
         return .{
             .buffer = buf,
             .width = width,
@@ -116,7 +119,10 @@ pub const Image = struct {
     }
 
     fn getBufferIndex(self: Image, x: u16, y: u16) usize {
-        var i = @as(u32, @intCast(y)) * @as(u32, @intCast(self.width)) * @as(u32, @intCast(self.channels));
+        var i = @as(u32, @intCast(y)) * @as(u32, @intCast(self.width)) * @as(
+            u32,
+            @intCast(self.channels),
+        );
         i += @as(u32, @intCast(x)) * @as(u32, @intCast(self.channels));
         return @as(usize, @intCast(i));
     }
@@ -140,7 +146,9 @@ pub const Image = struct {
                 x = @as(u16, @intCast(i));
                 y = @as(u16, @intCast(j));
                 buf_i = self.getBufferIndex(x, y);
-                try self.image_file.writePixelBuffered(zm.Vec3{ .data = self.buffer[buf_i..][0..3].* });
+                try self.image_file.writePixelBuffered(
+                    zm.Vec3{ .data = self.buffer[buf_i..][0..3].* },
+                );
             }
             try self.image_file.flush();
         }

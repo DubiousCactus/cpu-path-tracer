@@ -123,7 +123,8 @@ pub const Camera = struct {
             self.pixel_delta_u.scale(local_pixel_origin.data[0]),
         ).add(self.pixel_delta_v.scale(local_pixel_origin.data[1]));
         const ray_direction = pixel_center.sub(ray_origin);
-        return Ray.init(ray_origin, ray_direction);
+        const ray_time: f32 = @as(f32, @floatCast(math.randomF64(self.rng.random())));
+        return Ray.init(ray_origin, ray_direction, ray_time);
     }
 
     fn rayColor(
@@ -134,7 +135,10 @@ pub const Camera = struct {
     ) zm.Vec3 {
         if (bounce > self.params.max_bounces) {
             return zm.Vec3.zero();
-        } else if (object.hit(ray, math.Interval{ .min = 0.001, .max = std.math.inf(f64) })) |hit| {
+        } else if (object.hit(
+            ray,
+            math.Interval{ .min = 0.001, .max = std.math.inf(f64) },
+        )) |hit| {
             if (hit.material.scatter(
                 self.rng.random(),
                 ray,
@@ -142,7 +146,7 @@ pub const Camera = struct {
             )) |scattering| {
                 return math.mulVec3(self.rayColor(
                     object,
-                    Ray.init(hit.point, scattering.ray.dir),
+                    Ray.init(hit.point, scattering.ray.dir, null),
                     bounce + 1,
                 ), scattering.attenuation);
             } else {
@@ -219,11 +223,13 @@ pub const Camera = struct {
 pub const Ray = struct {
     origin: zm.Vec3,
     dir: zm.Vec3,
+    time: f32,
 
-    pub fn init(origin: zm.Vec3, dir: zm.Vec3) Ray {
+    pub fn init(origin: zm.Vec3, dir: zm.Vec3, time: ?f32) Ray {
         return .{
             .origin = origin,
             .dir = dir.norm(),
+            .time = time orelse 0,
         };
     }
 

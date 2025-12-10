@@ -34,7 +34,6 @@ pub const Diffuse = struct {
         hit: Hit,
     ) ?Scattering {
         _ = self;
-        _ = in_ray;
         // INFO: For basic diffuse material, we can sample uniformly on the hemisphere defined
         // by the surface normal where the ray hit the object:
         // return randomHemisphereVec3(rng, hit.normal);
@@ -45,6 +44,7 @@ pub const Diffuse = struct {
             .ray = Ray.init(
                 hit.point,
                 hit.normal.add(math.randomUnitVec3(rng)),
+                in_ray.time,
             ),
             .attenuation = zm.Vec3.zero(),
         };
@@ -64,13 +64,12 @@ pub const Lambertian = struct {
         in_ray: Ray,
         hit: Hit,
     ) ?Scattering {
-        _ = in_ray;
         var scatter_direction = hit.normal.add(math.randomUnitVec3(rng));
         if (math.isVec3NearZero(scatter_direction)) {
             scatter_direction = hit.normal;
         }
         return .{
-            .ray = Ray.init(hit.point, scatter_direction),
+            .ray = Ray.init(hit.point, scatter_direction, in_ray.time),
             .attenuation = self.albedo,
         };
     }
@@ -101,7 +100,7 @@ pub const Metallic = struct {
             }
         }
         return .{
-            .ray = Ray.init(hit.point, scattered_dir),
+            .ray = Ray.init(hit.point, scattered_dir, in_ray.time),
             .attenuation = self.albedo,
         };
     }
@@ -138,7 +137,7 @@ pub const Dielectric = struct {
             bounce_dir = math.refract(in_ray.dir, hit.normal, refractive_index);
         }
         return .{
-            .ray = Ray.init(hit.point, bounce_dir),
+            .ray = Ray.init(hit.point, bounce_dir, in_ray.time),
             .attenuation = zm.Vec3{ .data = .{ 1, 1, 1 } },
         };
     }

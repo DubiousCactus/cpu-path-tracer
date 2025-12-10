@@ -30,7 +30,7 @@ pub fn main() !void {
     var world = ray_tracer.scene.HittableGroup.init();
     defer world.hittable_group.deinit(allocator);
     // Main Lambertian sphere:
-    try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
+    try world.hittable_group.addOne(ray_tracer.scene.Sphere.initStatic(
         zm.Vec3{ .data = .{ -4, 1, 2.5 } },
         1.0,
         ray_tracer.material.Lambertian.init(
@@ -39,18 +39,18 @@ pub fn main() !void {
     ), allocator);
     // Glass sphere (made of one outer glass sphere, one inner air sphere)
     const glass_sphere_pos = zm.Vec3{ .data = .{ 0, 2, 0 } };
-    try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
+    try world.hittable_group.addOne(ray_tracer.scene.Sphere.initStatic(
         glass_sphere_pos,
         2.0,
         ray_tracer.material.Dielectric.init(1.5), // Index of glass
     ), allocator);
-    try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
+    try world.hittable_group.addOne(ray_tracer.scene.Sphere.initStatic(
         glass_sphere_pos,
         1.7,
         ray_tracer.material.Dielectric.init(1.0 / 1.5), // Index of air over glass
     ), allocator);
     // Metallic sphere 1:
-    try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
+    try world.hittable_group.addOne(ray_tracer.scene.Sphere.initStatic(
         zm.Vec3{ .data = .{ -8, 1.5, -5.5 } },
         1.5,
         ray_tracer.material.Metallic.init(
@@ -59,7 +59,7 @@ pub fn main() !void {
         ),
     ), allocator);
     // Metallic sphere 2:
-    try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
+    try world.hittable_group.addOne(ray_tracer.scene.Sphere.initStatic(
         zm.Vec3{ .data = .{ 0.9, 0.3, -0.3 } },
         0.3,
         ray_tracer.material.Metallic.init(
@@ -68,7 +68,7 @@ pub fn main() !void {
         ),
     ), allocator);
     // Ground:
-    try world.hittable_group.addOne(ray_tracer.scene.Sphere.init(
+    try world.hittable_group.addOne(ray_tracer.scene.Sphere.initStatic(
         zm.Vec3{ .data = .{ 0, -1000, 0 } },
         1000,
         ray_tracer.material.Lambertian.init(
@@ -95,24 +95,37 @@ pub fn main() !void {
                 if (mat_choice < 0.8) {
                     // diffuse
                     albedo = ray_tracer.math.randomVec3MinMax(random_if, 0.1, 1);
-                    // albedo = ray_tracer.math.mulVec3(
-                    //     ray_tracer.math.randomUnitVec3(random_if),
-                    //     ray_tracer.math.randomUnitVec3(random_if),
-                    // );
                     mat = ray_tracer.material.Lambertian.init(albedo);
+                    try world.hittable_group.addOne(
+                        ray_tracer.scene.Sphere.initDynamic(
+                            center,
+                            center.add(zm.Vec3{ .data = .{
+                                0,
+                                ray_tracer.math.randomF64MinMax(random_if, 0.0, 0.5),
+                                0,
+                            } }),
+                            radius,
+                            mat,
+                        ),
+                        allocator,
+                    );
                 } else if (mat_choice < 0.95) {
                     // metal
                     albedo = ray_tracer.math.randomVec3MinMax(random_if, 0.5, 1);
                     const fuzz = ray_tracer.math.randomF64MinMax(random_if, 0, 0.5);
                     mat = ray_tracer.material.Metallic.init(albedo, fuzz);
+                    try world.hittable_group.addOne(
+                        ray_tracer.scene.Sphere.initStatic(center, radius, mat),
+                        allocator,
+                    );
                 } else {
                     // glass
                     mat = ray_tracer.material.Dielectric.init(1.5);
+                    try world.hittable_group.addOne(
+                        ray_tracer.scene.Sphere.initStatic(center, radius, mat),
+                        allocator,
+                    );
                 }
-                try world.hittable_group.addOne(
-                    ray_tracer.scene.Sphere.init(center, radius, mat),
-                    allocator,
-                );
             }
         }
     }

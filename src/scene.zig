@@ -83,20 +83,47 @@ pub const HittableGroup = struct {
 };
 
 pub const Sphere = struct {
-    origin: zm.Vec3,
+    origin0: zm.Vec3,
+    origin1: ?zm.Vec3 = null,
     radius: f64,
     material: Material,
-
-    pub fn init(origin: zm.Vec3, radius: f64, material: Material) Hittable {
+    pub fn initStatic(
+        origin: zm.Vec3,
+        radius: f64,
+        material: Material,
+    ) Hittable {
         return Hittable{ .sphere = Sphere{
-            .origin = origin,
+            .origin0 = origin,
             .radius = radius,
             .material = material,
         } };
     }
 
+    pub fn initDynamic(
+        origin0: zm.Vec3,
+        origin1: zm.Vec3,
+        radius: f64,
+        material: Material,
+    ) Hittable {
+        return Hittable{ .sphere = Sphere{
+            .origin0 = origin0,
+            .origin1 = origin1,
+            .radius = radius,
+            .material = material,
+        } };
+    }
+
+    fn getOrigin(self: Sphere, time: f32) zm.Vec3 {
+        if (self.origin1) |origin1| {
+            return self.origin0.add(origin1.scale(time));
+        } else {
+            return self.origin0;
+        }
+    }
+
     pub fn hit(self: Sphere, ray: Ray, ray_t: Interval) ?Hit {
-        const oc = self.origin.sub(ray.origin);
+        const sphere_center = self.getOrigin(ray.time);
+        const oc = sphere_center.sub(ray.origin);
         const a = ray.dir.lenSq();
         const h = ray.dir.dot(oc);
         const c = oc.lenSq() - (self.radius * self.radius);
@@ -112,7 +139,7 @@ pub const Sphere = struct {
             }
         }
         const p = ray.at(root);
-        const outward_normal = p.sub(self.origin).scale(1 / self.radius);
+        const outward_normal = p.sub(sphere_center).scale(1 / self.radius);
         const is_front_face = ray.dir.dot(outward_normal) <= 0;
         const face_normal = if (is_front_face) outward_normal else outward_normal.scale(-1);
         return .{
@@ -124,7 +151,8 @@ pub const Sphere = struct {
         };
     }
 
-    pub fn normalAt(self: Sphere, p: zm.Vec3) zm.Vec3 {
-        return p.sub(self.origin).norm();
+    pub fn normalAt(self: Sphere, p: zm.Vec3, t: f32) zm.Vec3 {
+        return p.sub(self.getOrigin(t)).norm();
     }
+
 };
