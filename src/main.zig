@@ -27,7 +27,7 @@ pub fn main() !void {
     );
     defer img.deinit(allocator);
 
-    var world = ray_tracer.scene.HittableGroup.init();
+    var world = ray_tracer.tracing.HittableGroup.init();
     defer world.hittable_group.deinit(allocator);
     // Main Lambertian sphere:
     try world.hittable_group.addOne(ray_tracer.scene.Sphere.initStatic(

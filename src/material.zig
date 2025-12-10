@@ -1,8 +1,9 @@
 const zm = @import("zm");
 const std = @import("std");
 const math = @import("math.zig");
-const Ray = @import("rendering.zig").Ray;
-const Hit = @import("scene.zig").Hit;
+const tracing = @import("tracing.zig");
+const Ray = tracing.Ray;
+const Hit = tracing.Hit;
 
 pub const Scattering = struct {
     ray: Ray,

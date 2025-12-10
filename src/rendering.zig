@@ -3,6 +3,8 @@ const zm = @import("zm");
 const Image = @import("image.zig").Image;
 const scene = @import("scene.zig");
 const math = @import("math.zig");
+const tracing = @import("tracing.zig");
+const Ray = tracing.Ray;
 
 pub const CameraParams = struct {
     img_width: u16,
@@ -129,7 +131,7 @@ pub const Camera = struct {
 
     fn rayColor(
         self: *Camera,
-        object: scene.Hittable,
+        object: tracing.Hittable,
         ray: Ray,
         bounce: u16,
     ) zm.Vec3 {
@@ -164,7 +166,7 @@ pub const Camera = struct {
     fn renderPixel(
         self: *Camera,
         image: *Image,
-        world: scene.Hittable,
+        world: tracing.Hittable,
         x: usize,
         y: usize,
         progress: std.Progress.Node,
@@ -190,7 +192,7 @@ pub const Camera = struct {
 
     pub fn render(
         self: *Camera,
-        world: scene.Hittable,
+        world: tracing.Hittable,
         image: *Image,
         allocator: std.mem.Allocator,
     ) !void {
@@ -217,23 +219,5 @@ pub const Camera = struct {
         }
         thread_pool.deinit();
         progress.end();
-    }
-};
-
-pub const Ray = struct {
-    origin: zm.Vec3,
-    dir: zm.Vec3,
-    time: f32,
-
-    pub fn init(origin: zm.Vec3, dir: zm.Vec3, time: ?f32) Ray {
-        return .{
-            .origin = origin,
-            .dir = dir.norm(),
-            .time = time orelse 0,
-        };
-    }
-
-    pub fn at(self: Ray, t: f64) zm.Vec3 {
-        return self.origin.add(self.dir.scale(t));
     }
 };

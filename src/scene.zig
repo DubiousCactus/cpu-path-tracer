@@ -1,99 +1,10 @@
 const std = @import("std");
 const zm = @import("zm");
 
-const Ray = @import("rendering.zig").Ray;
 const Interval = @import("math.zig").Interval;
 const Material = @import("material.zig").Material;
 const AABB = @import("aabb.zig").AABB;
-
-pub fn Hits(max_count: comptime_int) type {
-    if (max_count < 1) {
-        @compileError("Intersections count must be > 1!");
-    }
-
-    return struct {
-        const Self = @This();
-
-        count: u16,
-        where: [max_count]zm.Vec3,
-        normals: [max_count]zm.Vec3,
-
-        pub fn whereSlice(self: Self) []zm.Vec3 {
-            return self.where[0..self.count];
-        }
-
-        pub fn normalSlice(self: Self) []zm.Vec3 {
-            return self.normals[0..self.count];
-        }
-    };
-}
-pub const Hit = struct {
-    point: zm.Vec3,
-    normal: zm.Vec3,
-    at: f64,
-    is_front_face: bool,
-    material: Material,
-};
-
-pub const Hittable = union(enum) {
-    sphere: Sphere,
-    hittable_group: HittableGroup,
-
-    pub fn hit(self: Hittable, ray: Ray, ray_t: Interval) ?Hit {
-        switch (self) {
-            inline else => |impl| return impl.hit(ray, ray_t),
-        }
-    }
-
-    pub fn aabb(self: Hittable) AABB {
-        switch (self) {
-            inline else => |impl| return impl.aabb(),
-        }
-    }
-};
-
-pub const HittableGroup = struct {
-    objects: std.ArrayList(Hittable) = std.ArrayList(Hittable).empty,
-    bbox: AABB,
-
-    pub fn init() Hittable {
-        return Hittable{ .hittable_group = HittableGroup{} };
-    }
-
-    pub fn addOne(
-        self: *HittableGroup,
-        object: Hittable,
-        gpa: std.mem.Allocator,
-    ) !void {
-        try self.objects.append(gpa, object);
-        self.bbox = AABB.initFromAABBs(self.bbox, object.aabb());
-    }
-
-    pub fn deinit(self: *HittableGroup, gpa: std.mem.Allocator) void {
-        self.objects.deinit(gpa);
-    }
-
-    pub fn hit(self: HittableGroup, ray: Ray, ray_t: Interval) ?Hit {
-        var last_hit: ?Hit = null;
-        var closest_so_far = ray_t.max;
-
-        for (self.objects.items) |obj| {
-            if (obj.hit(
-                ray,
-                Interval{ .min = ray_t.min, .max = closest_so_far },
-            )) |current_hit| {
-                last_hit = current_hit;
-                closest_so_far = current_hit.at;
-            }
-        }
-
-        return last_hit;
-    }
-
-    pub fn aabb(self: HittableGroup) AABB {
-        return self.bbox;
-    }
-};
+const tracing = @import("tracing.zig");
 
 pub const Sphere = struct {
     origin0: zm.Vec3,
@@ -106,16 +17,16 @@ pub const Sphere = struct {
         origin: zm.Vec3,
         radius: f64,
         material: Material,
-    ) Hittable {
+    ) tracing.Hittable {
         const radius_vec = zm.Vec3.init(radius);
         const neg_rad = origin.sub(radius_vec);
         const pos_rad = origin.add(radius_vec);
         const bbox: AABB = .{
-            .x_interval = .{ .min = neg_rad[0], .max = pos_rad[0] },
-            .y_interval = .{ .min = neg_rad[1], .max = pos_rad[1] },
-            .z_interval = .{ .min = neg_rad[2], .max = pos_rad[2] },
+            .x_interval = .{ .min = neg_rad.data[0], .max = pos_rad.data[0] },
+            .y_interval = .{ .min = neg_rad.data[1], .max = pos_rad.data[1] },
+            .z_interval = .{ .min = neg_rad.data[2], .max = pos_rad.data[2] },
         };
-        return Hittable{ .sphere = Sphere{
+        return tracing.Hittable{ .sphere = Sphere{
             .origin0 = origin,
             .radius = radius,
             .material = material,
@@ -128,23 +39,23 @@ pub const Sphere = struct {
         origin1: zm.Vec3,
         radius: f64,
         material: Material,
-    ) Hittable {
+    ) tracing.Hittable {
         const radius_vec = zm.Vec3.init(radius);
         var neg_rad = origin0.sub(radius_vec);
         var pos_rad = origin0.add(radius_vec);
         const bbox0: AABB = .{
-            .x_interval = .{ .min = neg_rad[0], .max = pos_rad[0] },
-            .y_interval = .{ .min = neg_rad[1], .max = pos_rad[1] },
-            .z_interval = .{ .min = neg_rad[2], .max = pos_rad[2] },
+            .x_interval = .{ .min = neg_rad.data[0], .max = pos_rad.data[0] },
+            .y_interval = .{ .min = neg_rad.data[1], .max = pos_rad.data[1] },
+            .z_interval = .{ .min = neg_rad.data[2], .max = pos_rad.data[2] },
         };
         neg_rad = origin1.sub(radius_vec);
         pos_rad = origin1.add(radius_vec);
         const bbox1: AABB = .{
-            .x_interval = .{ .min = neg_rad[0], .max = pos_rad[0] },
-            .y_interval = .{ .min = neg_rad[1], .max = pos_rad[1] },
-            .z_interval = .{ .min = neg_rad[2], .max = pos_rad[2] },
+            .x_interval = .{ .min = neg_rad.data[0], .max = pos_rad.data[0] },
+            .y_interval = .{ .min = neg_rad.data[1], .max = pos_rad.data[1] },
+            .z_interval = .{ .min = neg_rad.data[2], .max = pos_rad.data[2] },
         };
-        return Hittable{ .sphere = Sphere{
+        return tracing.Hittable{ .sphere = Sphere{
             .origin0 = origin0,
             .origin1 = origin1,
             .radius = radius,
@@ -161,7 +72,7 @@ pub const Sphere = struct {
         }
     }
 
-    pub fn hit(self: Sphere, ray: Ray, ray_t: Interval) ?Hit {
+    pub fn hit(self: Sphere, ray: tracing.Ray, ray_t: Interval) ?tracing.Hit {
         const sphere_center = self.getOrigin(ray.time);
         const oc = sphere_center.sub(ray.origin);
         const a = ray.dir.lenSq();

@@ -19,3 +19,4 @@ pub const universe_interval = math.Interval{
 pub const scene = @import("scene.zig");
 pub const Image = @import("image.zig").Image;
 pub const material = @import("material.zig");
+pub const tracing = @import("tracing.zig");

@@ -9,6 +9,14 @@ pub const AABB = struct {
     y_interval: Interval,
     z_interval: Interval,
 
+    pub fn initEmpty() AABB {
+        return .{
+            .x_interval = Interval{},
+            .y_interval = Interval{},
+            .z_interval = Interval{},
+        };
+    }
+
     pub fn initFromAABBs(bbox0: AABB, bbox1: AABB) AABB {
         return .{
             .x_interval = Interval.join(bbox0.x_interval, bbox1.x_interval),
