@@ -12,7 +12,7 @@ pub fn main() !void {
         .vfov = 30,
         .look_from = zm.Vec3{ .data = .{ 13, 2, 3 } },
         .look_at = zm.Vec3{ .data = .{ 0, 0, 0 } },
-        .samples_per_pixel = 128,
+        .samples_per_pixel = 100,
         .max_bounces = 50,
         .defocus_angle = 0.6,
         .focus_dist = 10.0,

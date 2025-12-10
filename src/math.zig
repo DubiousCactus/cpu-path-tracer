@@ -108,4 +108,19 @@ pub const Interval = struct {
     pub fn clamp(self: Interval, x: f64) f64 {
         return std.math.clamp(x, self.min, self.max);
     }
+
+    pub fn expand(self: Interval, delta: f64) Interval {
+        const padding = delta / 2;
+        return .{
+            .min = self.min - padding,
+            .max = self.max + padding,
+        };
+    }
+
+    pub fn join(a: Interval, b: Interval) Interval {
+        return .{
+            .min = @min(a.min, b.min),
+            .max = @max(a.max, b.max),
+        };
+    }
 };

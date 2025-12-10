@@ -4,6 +4,7 @@ const zm = @import("zm");
 const Ray = @import("rendering.zig").Ray;
 const Interval = @import("math.zig").Interval;
 const Material = @import("material.zig").Material;
+const AABB = @import("aabb.zig").AABB;
 
 pub fn Hits(max_count: comptime_int) type {
     if (max_count < 1) {
@@ -43,10 +44,17 @@ pub const Hittable = union(enum) {
             inline else => |impl| return impl.hit(ray, ray_t),
         }
     }
+
+    pub fn aabb(self: Hittable) AABB {
+        switch (self) {
+            inline else => |impl| return impl.aabb(),
+        }
+    }
 };
 
 pub const HittableGroup = struct {
     objects: std.ArrayList(Hittable) = std.ArrayList(Hittable).empty,
+    bbox: AABB,
 
     pub fn init() Hittable {
         return Hittable{ .hittable_group = HittableGroup{} };
@@ -58,6 +66,7 @@ pub const HittableGroup = struct {
         gpa: std.mem.Allocator,
     ) !void {
         try self.objects.append(gpa, object);
+        self.bbox = AABB.initFromAABBs(self.bbox, object.aabb());
     }
 
     pub fn deinit(self: *HittableGroup, gpa: std.mem.Allocator) void {
@@ -80,6 +89,10 @@ pub const HittableGroup = struct {
 
         return last_hit;
     }
+
+    pub fn aabb(self: HittableGroup) AABB {
+        return self.bbox;
+    }
 };
 
 pub const Sphere = struct {
@@ -87,15 +100,26 @@ pub const Sphere = struct {
     origin1: ?zm.Vec3 = null,
     radius: f64,
     material: Material,
+    bbox: AABB,
+
     pub fn initStatic(
         origin: zm.Vec3,
         radius: f64,
         material: Material,
     ) Hittable {
+        const radius_vec = zm.Vec3.init(radius);
+        const neg_rad = origin.sub(radius_vec);
+        const pos_rad = origin.add(radius_vec);
+        const bbox: AABB = .{
+            .x_interval = .{ .min = neg_rad[0], .max = pos_rad[0] },
+            .y_interval = .{ .min = neg_rad[1], .max = pos_rad[1] },
+            .z_interval = .{ .min = neg_rad[2], .max = pos_rad[2] },
+        };
         return Hittable{ .sphere = Sphere{
             .origin0 = origin,
             .radius = radius,
             .material = material,
+            .bbox = bbox,
         } };
     }
 
@@ -105,11 +129,27 @@ pub const Sphere = struct {
         radius: f64,
         material: Material,
     ) Hittable {
+        const radius_vec = zm.Vec3.init(radius);
+        var neg_rad = origin0.sub(radius_vec);
+        var pos_rad = origin0.add(radius_vec);
+        const bbox0: AABB = .{
+            .x_interval = .{ .min = neg_rad[0], .max = pos_rad[0] },
+            .y_interval = .{ .min = neg_rad[1], .max = pos_rad[1] },
+            .z_interval = .{ .min = neg_rad[2], .max = pos_rad[2] },
+        };
+        neg_rad = origin1.sub(radius_vec);
+        pos_rad = origin1.add(radius_vec);
+        const bbox1: AABB = .{
+            .x_interval = .{ .min = neg_rad[0], .max = pos_rad[0] },
+            .y_interval = .{ .min = neg_rad[1], .max = pos_rad[1] },
+            .z_interval = .{ .min = neg_rad[2], .max = pos_rad[2] },
+        };
         return Hittable{ .sphere = Sphere{
             .origin0 = origin0,
             .origin1 = origin1,
             .radius = radius,
             .material = material,
+            .bbox = AABB.initFromAABBs(bbox0, bbox1),
         } };
     }
 
@@ -155,4 +195,7 @@ pub const Sphere = struct {
         return p.sub(self.getOrigin(t)).norm();
     }
 
+    pub fn aabb(self: Sphere) AABB {
+        return self.bbox;
+    }
 };
