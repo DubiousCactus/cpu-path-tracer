@@ -101,7 +101,7 @@ pub fn main() !void {
                             center,
                             center.add(zm.Vec3{ .data = .{
                                 0,
-                                ray_tracer.math.randomF64MinMax(random_if, 0.0, 0.5),
+                                ray_tracer.math.randomF64MinMax(random_if, 0.0, 0.25),
                                 0,
                             } }),
                             radius,
