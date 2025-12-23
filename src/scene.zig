@@ -18,19 +18,14 @@ pub const Sphere = struct {
         radius: f64,
         material: Material,
     ) tracing.Hittable {
-        const radius_vec = zm.Vec3.init(radius);
+        const radius_vec = zm.Vec3.init(@max(0, radius));
         const neg_rad = origin.sub(radius_vec);
         const pos_rad = origin.add(radius_vec);
-        const bbox: AABB = .{
-            .x_interval = .{ .min = neg_rad.data[0], .max = pos_rad.data[0] },
-            .y_interval = .{ .min = neg_rad.data[1], .max = pos_rad.data[1] },
-            .z_interval = .{ .min = neg_rad.data[2], .max = pos_rad.data[2] },
-        };
         return tracing.Hittable{ .sphere = Sphere{
             .origin0 = origin,
-            .radius = radius,
+            .radius = @max(0, radius),
             .material = material,
-            .bbox = bbox,
+            .bbox = AABB.initFromExtrema(neg_rad, pos_rad),
         } };
     }
 
@@ -40,25 +35,17 @@ pub const Sphere = struct {
         radius: f64,
         material: Material,
     ) tracing.Hittable {
-        const radius_vec = zm.Vec3.init(radius);
+        const radius_vec = zm.Vec3.init(@max(0, radius));
         var neg_rad = origin0.sub(radius_vec);
         var pos_rad = origin0.add(radius_vec);
-        const bbox0: AABB = .{
-            .x_interval = .{ .min = neg_rad.data[0], .max = pos_rad.data[0] },
-            .y_interval = .{ .min = neg_rad.data[1], .max = pos_rad.data[1] },
-            .z_interval = .{ .min = neg_rad.data[2], .max = pos_rad.data[2] },
-        };
+        const bbox0: AABB = AABB.initFromExtrema(neg_rad, pos_rad);
         neg_rad = origin1.sub(radius_vec);
         pos_rad = origin1.add(radius_vec);
-        const bbox1: AABB = .{
-            .x_interval = .{ .min = neg_rad.data[0], .max = pos_rad.data[0] },
-            .y_interval = .{ .min = neg_rad.data[1], .max = pos_rad.data[1] },
-            .z_interval = .{ .min = neg_rad.data[2], .max = pos_rad.data[2] },
-        };
+        const bbox1: AABB = AABB.initFromExtrema(neg_rad, pos_rad);
         return tracing.Hittable{ .sphere = Sphere{
             .origin0 = origin0,
             .origin1 = origin1,
-            .radius = radius,
+            .radius = @max(0, radius),
             .material = material,
             .bbox = AABB.initFromAABBs(bbox0, bbox1),
         } };
@@ -66,7 +53,8 @@ pub const Sphere = struct {
 
     fn getOrigin(self: Sphere, time: f32) zm.Vec3 {
         if (self.origin1) |origin1| {
-            return zm.Vec3.lerp(self.origin0, origin1, time);
+            return self.origin0.add(origin1.scale(time));
+            // return zm.Vec3.lerp(self.origin0, origin1, time);
         } else {
             return self.origin0;
         }

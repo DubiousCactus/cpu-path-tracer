@@ -9,6 +9,12 @@ pub fn randomF64MinMax(rng: std.Random, a: f64, b: f64) f64 {
     return a + (b - a) * rng.float(f64);
 }
 
+pub fn randomIntMinMax(comptime T: type, rng: std.Random, a: T, b: T) T {
+    // return a + (b - a) * rng.int(T);
+    const asf64 = randomF64MinMax(rng, @as(f64, @floatFromInt(a)), @as(f64, @floatFromInt(b)));
+    return @as(T, @intFromFloat(asf64));
+}
+
 pub fn randomVec3(rng: std.Random) zm.Vec3 {
     return zm.Vec3{ .data = .{
         randomF64(rng),
@@ -16,6 +22,7 @@ pub fn randomVec3(rng: std.Random) zm.Vec3 {
         randomF64(rng),
     } };
 }
+
 pub fn randomVec3MinMax(rng: std.Random, min: f64, max: f64) zm.Vec3 {
     return zm.Vec3{ .data = .{
         randomF64MinMax(rng, min, max),

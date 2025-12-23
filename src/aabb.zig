@@ -2,7 +2,7 @@ const zm = @import("zm");
 const std = @import("std");
 
 const Interval = @import("math.zig").Interval;
-const Ray = @import("rendering.zig").Ray;
+const Ray = @import("tracing.zig").Ray;
 
 pub const AABB = struct {
     x_interval: Interval,
@@ -17,6 +17,23 @@ pub const AABB = struct {
         };
     }
 
+    pub fn initFromExtrema(a: zm.Vec3, b: zm.Vec3) AABB {
+        return .{
+            .x_interval = Interval{
+                .min = @min(a.data[0], b.data[0]),
+                .max = @max(a.data[0], b.data[0]),
+            },
+            .y_interval = Interval{
+                .min = @min(a.data[1], b.data[1]),
+                .max = @max(a.data[1], b.data[1]),
+            },
+            .z_interval = Interval{
+                .min = @min(a.data[2], b.data[2]),
+                .max = @max(a.data[2], b.data[2]),
+            },
+        };
+    }
+
     pub fn initFromAABBs(bbox0: AABB, bbox1: AABB) AABB {
         return .{
             .x_interval = Interval.join(bbox0.x_interval, bbox1.x_interval),
@@ -25,7 +42,15 @@ pub const AABB = struct {
         };
     }
 
-    fn computeIntersection(
+    pub inline fn axisIntervals(self: AABB) [3]Interval {
+        return .{
+            self.x_interval,
+            self.y_interval,
+            self.z_interval,
+        };
+    }
+
+    inline fn computeIntersection(
         comptime dim: u8,
         ray: Ray,
         interval: Interval,
@@ -35,29 +60,25 @@ pub const AABB = struct {
         const b: f64 = (interval.max - ray.origin.data[dim]) * dir_div;
         return .{
             .min = @min(a, b),
-            .max = @max(b, b),
+            .max = @max(a, b),
         };
     }
 
     pub fn hit(self: AABB, ray: Ray, ray_t: Interval) bool {
-        const intervals: [3]Interval = .{
-            self.x_interval,
-            self.y_interval,
-            self.z_interal,
-        };
-        inline for (0..3) |dim| {
-            const t_interval: Interval = AABB.computeIntersection(
-                dim,
+        var ray_t_temp = Interval{ .min = ray_t.min, .max = ray_t.max };
+        inline for (0..3) |axis| {
+            const intersections: Interval = AABB.computeIntersection(
+                axis,
                 ray,
-                intervals[dim],
+                self.axisIntervals()[axis],
             ).expand(1e-6);
-            if (t_interval.min > ray_t.min) {
-                ray_t.min = t_interval.min;
+            if (intersections.min > ray_t_temp.min) {
+                ray_t_temp.min = intersections.min;
             }
-            if (t_interval.max < ray_t.max) {
-                ray_t.max = t_interval.max;
+            if (intersections.max < ray_t_temp.max) {
+                ray_t_temp.max = intersections.max;
             }
-            if (ray_t.max <= ray_t.min) {
+            if (ray_t_temp.max <= ray_t_temp.min) {
                 return false;
             }
         }

@@ -5,6 +5,7 @@ const AABB = @import("aabb.zig").AABB;
 const Interval = @import("math.zig").Interval;
 const Material = @import("material.zig").Material;
 const scene = @import("scene.zig");
+const bvh = @import("bvh.zig");
 
 pub const Ray = struct {
     origin: zm.Vec3,
@@ -56,10 +57,19 @@ pub const Hit = struct {
 pub const Hittable = union(enum) {
     sphere: scene.Sphere,
     hittable_group: HittableGroup,
+    bvh_node: bvh.Node,
 
     pub fn hit(self: Hittable, ray: Ray, ray_t: Interval) ?Hit {
         switch (self) {
             inline else => |impl| return impl.hit(ray, ray_t),
+        }
+    }
+
+    pub fn deinit(self: *Hittable, gpa: std.mem.Allocator) void {
+        switch (self.*) {
+            .bvh_node => |node| node.deinit(gpa),
+            // .hittable_group => |group| group.deinit(gpa),
+            else => {},
         }
     }
 
@@ -75,7 +85,7 @@ pub const HittableGroup = struct {
     bbox: AABB = AABB.initEmpty(),
 
     pub fn init() Hittable {
-        return Hittable{ .hittable_group = HittableGroup{} };
+        return Hittable{ .hittable_group = .{} };
     }
 
     pub fn addOne(

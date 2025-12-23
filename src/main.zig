@@ -130,7 +130,16 @@ pub fn main() !void {
         }
     }
 
-    try camera.render(world, &img, allocator);
+    var bvh_world = try ray_tracer.bvh.Node.init(
+        world.hittable_group,
+        camera.rng.random(),
+        0,
+        world.hittable_group.objects.items.len - 1,
+        allocator,
+    );
+    defer bvh_world.deinit(allocator);
+    try camera.render(bvh_world, &img, allocator);
+    // try camera.render(world, &img, allocator);
     std.debug.print("Saving image as {s}...\n", .{img.file_name});
     try img.save();
     std.debug.print("Done!\n", .{});

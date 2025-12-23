@@ -198,7 +198,7 @@ pub const Camera = struct {
     ) !void {
         var progress = std.Progress.start(
             .{
-                .estimated_total_items = self.img_height * self.img_width,
+                .estimated_total_items = @as(usize, @intCast(self.img_height)) * @as(usize, @intCast(self.img_width)),
                 .root_name = "Tracing light paths...",
             },
         );
