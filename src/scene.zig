@@ -66,7 +66,7 @@ pub const Sphere = struct {
 
     fn getOrigin(self: Sphere, time: f32) zm.Vec3 {
         if (self.origin1) |origin1| {
-            return self.origin0.add(origin1.scale(time));
+            return zm.Vec3.lerp(self.origin0, origin1, time);
         } else {
             return self.origin0;
         }
