@@ -42,6 +42,14 @@ pub const AABB = struct {
         };
     }
 
+    pub fn longestAxis(self: AABB) u8 {
+        if (self.x_interval.size() > self.y_interval.size()) {
+            return if (self.x_interval.size() > self.z_interval.size()) 0 else 2;
+        } else {
+            return if (self.y_interval.size() > self.z_interval.size()) 1 else 2;
+        }
+    }
+
     pub inline fn axisIntervals(self: AABB) [3]Interval {
         return .{
             self.x_interval,
