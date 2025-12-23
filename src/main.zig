@@ -138,8 +138,11 @@ pub fn main() !void {
         allocator,
     );
     defer bvh_world.deinit(allocator);
+    var timer = try std.time.Timer.start();
     try camera.render(bvh_world, &img, allocator);
     // try camera.render(world, &img, allocator);
+    const delta = timer.read();
+    std.debug.print("Render took: {d}s\n", .{@as(f64, @floatFromInt(delta)) / std.time.ns_per_s});
     std.debug.print("Saving image as {s}...\n", .{img.file_name});
     try img.save();
     std.debug.print("Done!\n", .{});
