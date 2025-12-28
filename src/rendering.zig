@@ -146,11 +146,11 @@ pub const Camera = struct {
                 ray,
                 hit,
             )) |scattering| {
-                return math.mulVec3(self.rayColor(
+                return self.rayColor(
                     object,
                     Ray.init(hit.point, scattering.ray.dir, ray.time),
                     bounce + 1,
-                ), scattering.attenuation);
+                ).mul(scattering.attenuation);
             } else {
                 return zm.Vec3.zero();
             }

@@ -33,8 +33,8 @@
     // internet connectivity.
     .dependencies = .{
         .zm = .{
-            .url = "git+https://github.com/griush/zm.git#bfaabda2fcc786d114c0814f3ebdc3cfcc4376cb",
-            .hash = "zm-0.5.0-cLX-WTrRAAAFRBKsUOyUCOcwDToDaEZZPclUOSUQH1qz",
+            .url = "git+https://github.com/griush/zm#f57f49db95eb145f5f59385dd6ff671cc59da40f",
+            .hash = "zm-0.5.0-cLX-WXTdAACG4y4aKOpCgO5Ts2rGRTlLrQ6OfvFfwgAt",
         },
     },
     .paths = .{

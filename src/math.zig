@@ -87,14 +87,6 @@ pub fn refract(v: zm.Vec3, normal: zm.Vec3, refractive_ratio: f64) zm.Vec3 {
     return v_perp.add(v_parall);
 }
 
-pub fn mulVec3(a: zm.Vec3, b: zm.Vec3) zm.Vec3 {
-    return .{ .data = .{
-        a.data[0] * b.data[0],
-        a.data[1] * b.data[1],
-        a.data[2] * b.data[2],
-    } };
-}
-
 pub const Interval = struct {
     // Default interval is empty, so min=inf, max=-inf
     min: f64 = std.math.inf(f64),
