@@ -5,6 +5,7 @@ const scene = @import("scene.zig");
 const math = @import("math.zig");
 const tracing = @import("tracing.zig");
 const Ray = tracing.Ray;
+const LiveViewer = @import("viewer.zig").LiveViewer;
 
 pub const CameraParams = struct {
     img_width: u16,
@@ -190,11 +191,37 @@ pub const Camera = struct {
         progress.completeOne();
     }
 
+    fn renderSample(
+        self: *Camera,
+        image: *Image,
+        world: tracing.Hittable,
+        x: usize,
+        y: usize,
+        sample_idx: usize,
+    ) void {
+        const c = self.rayColor(
+            world,
+            self.getRay(
+                @as(u16, @intCast(x)),
+                @as(u16, @intCast(y)),
+            ),
+            0,
+        );
+        image.accumulate(
+            @as(u16, @intCast(x)),
+            @as(u16, @intCast(y)),
+            c,
+            sample_idx,
+            self.params.samples_per_pixel,
+        );
+    }
+
     pub fn render(
         self: *Camera,
         world: tracing.Hittable,
         image: *Image,
         allocator: std.mem.Allocator,
+        viewer: ?LiveViewer,
     ) !void {
         var progress = std.Progress.start(
             .{
@@ -203,7 +230,7 @@ pub const Camera = struct {
             },
         );
         var thread_pool: std.Thread.Pool = undefined;
-        try thread_pool.init(.{ .n_jobs = 8, .allocator = allocator });
+        try thread_pool.init(.{ .n_jobs = 16, .allocator = allocator });
         errdefer thread_pool.deinit();
         for (0..self.img_height) |j| {
             for (0..self.img_width) |i| {
@@ -216,6 +243,9 @@ pub const Camera = struct {
                     progress,
                 });
             }
+        }
+        if (viewer) |v| {
+            try v.run();
         }
         thread_pool.deinit();
         progress.end();

@@ -3,11 +3,11 @@ const zm = @import("zm");
 
 const Interval = @import("math.zig").Interval;
 
-fn linearToGamma(px: zm.Vec3) zm.Vec3 {
-    var gamma_px = zm.Vec3.zero();
-    inline for (0..px.data.len) |i| {
-        if (px.data[i] > 0) {
-            gamma_px.data[i] = std.math.sqrt(px.data[i]);
+fn linearToGamma(px: *const [3]f64) [3]f32 {
+    var gamma_px = [_]f32{0} ** 3;
+    inline for (0..3) |i| {
+        if (px[i] > 0) {
+            gamma_px[i] = @as(f32, @floatCast(std.math.sqrt(px[i])));
         }
     }
     return gamma_px;
@@ -46,9 +46,10 @@ pub const PPMImage = struct {
         self.writer.file.close();
     }
 
-    pub fn writePixelBuffered(self: *PPMImage, pixel: zm.Vec3) !void {
+    pub fn writePixelBuffered(self: *PPMImage, pixel: zm.Vec3f) !void {
         const intensity = Interval{ .min = 0.000, .max = 0.999 };
-        const gamma_px = linearToGamma(pixel);
+        // const gamma_px = linearToGamma(pixel);
+        const gamma_px = pixel;
         try self.writer.interface.print("{d} {d} {d}\n", .{
             @as(u8, @intFromFloat(256 * intensity.clamp(gamma_px.data[0]))),
             @as(u8, @intFromFloat(256 * intensity.clamp(gamma_px.data[1]))),
@@ -64,7 +65,7 @@ pub const PPMImage = struct {
 pub const ImageFile = union(enum) {
     ppm: PPMImage,
 
-    pub fn writePixelBuffered(self: *ImageFile, pixel: zm.Vec3) !void {
+    pub fn writePixelBuffered(self: *ImageFile, pixel: zm.Vec3f) !void {
         switch (self.*) {
             .ppm => |_| try self.ppm.writePixelBuffered(pixel),
         }
@@ -85,7 +86,7 @@ pub const ImageFile = union(enum) {
 };
 
 pub const Image = struct {
-    buffer: []f64,
+    buffer: []f32,
     width: u16,
     height: u16,
     channels: u16,
@@ -100,7 +101,7 @@ pub const Image = struct {
         allocator: std.mem.Allocator,
     ) !Image {
         const buf = try allocator.alloc(
-            f64,
+            f32,
             @as(u32, @intCast(width)) * @as(u32, @intCast(height)) * @as(u32, @intCast(channels)),
         );
         return .{
@@ -129,7 +130,7 @@ pub const Image = struct {
 
     pub fn write(self: *Image, x: u16, y: u16, c: zm.Vec3) void {
         const i: usize = self.getBufferIndex(x, y);
-        @memcpy(self.buffer[i .. i + 3], c.data[0..c.data.len]);
+        @memcpy(self.buffer[i .. i + 3], linearToGamma(c.data[0..c.data.len])[0..3]);
     }
 
     pub fn deinit(self: *Image, allocator: std.mem.Allocator) void {
@@ -147,7 +148,7 @@ pub const Image = struct {
                 y = @as(u16, @intCast(j));
                 buf_i = self.getBufferIndex(x, y);
                 try self.image_file.writePixelBuffered(
-                    zm.Vec3{ .data = self.buffer[buf_i..][0..3].* },
+                    zm.Vec3f{ .data = self.buffer[buf_i..][0..3].* },
                 );
             }
             try self.image_file.flush();

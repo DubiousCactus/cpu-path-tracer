@@ -7,7 +7,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     var camera = ray_tracer.Camera.init(.{
-        .img_width = 1920,
+        .img_width = 640,
         .img_aspect_ratio = 16.0 / 9.0,
         .vfov = 30,
         .look_from = zm.Vec3{ .data = .{ 13, 2, 3 } },
@@ -139,8 +139,10 @@ pub fn main() !void {
         ray_tracer.bvh.BVHBuildStrategy.LONGEST_AXIS,
     );
     defer bvh_world.deinit(allocator);
+    const viewer = try ray_tracer.LiveViewer.init(&img);
+    defer viewer.deinit();
     var timer = try std.time.Timer.start();
-    try camera.render(bvh_world, &img, allocator);
+    try camera.render(bvh_world, &img, allocator, viewer);
     // try camera.render(world, &img, allocator);
     const delta = timer.read();
     std.debug.print(

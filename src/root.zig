@@ -21,3 +21,4 @@ pub const Image = @import("image.zig").Image;
 pub const material = @import("material.zig");
 pub const tracing = @import("tracing.zig");
 pub const bvh = @import("bvh.zig");
+pub const LiveViewer = @import("viewer.zig").LiveViewer;
