@@ -191,29 +191,41 @@ pub const Camera = struct {
         progress.completeOne();
     }
 
-    fn renderSample(
+    fn renderTile(
         self: *Camera,
         image: *Image,
         world: tracing.Hittable,
-        x: usize,
-        y: usize,
-        sample_idx: usize,
+        x_range: [2]usize,
+        y_range: [2]usize,
+        progress: std.Progress.Node,
     ) void {
-        const c = self.rayColor(
-            world,
-            self.getRay(
-                @as(u16, @intCast(x)),
-                @as(u16, @intCast(y)),
-            ),
-            0,
-        );
-        image.accumulate(
-            @as(u16, @intCast(x)),
-            @as(u16, @intCast(y)),
-            c,
-            sample_idx,
-            self.params.samples_per_pixel,
-        );
+        std.debug.print("Rendering tile x: {d}-{d}, y: {d}-{d}\n", .{
+            x_range[0],
+            x_range[1],
+            y_range[0],
+            y_range[1],
+        });
+        for (0..self.params.samples_per_pixel) |_| {
+            for (y_range[0]..y_range[1]) |y| {
+                for (x_range[0]..x_range[1]) |x| {
+                    const c = self.rayColor(
+                        world,
+                        self.getRay(
+                            @as(u16, @intCast(x)),
+                            @as(u16, @intCast(y)),
+                        ),
+                        0,
+                    );
+                    image.accumulate(
+                        @as(u16, @intCast(x)),
+                        @as(u16, @intCast(y)),
+                        c,
+                        self.params.samples_per_pixel,
+                    );
+                    progress.completeOne();
+                }
+            }
+        }
     }
 
     pub fn render(
@@ -223,31 +235,103 @@ pub const Camera = struct {
         allocator: std.mem.Allocator,
         viewer: ?LiveViewer,
     ) !void {
+        var total_steps = @as(usize, @intCast(self.img_height)) * @as(
+            usize,
+            @intCast(self.img_width),
+        );
+        if (viewer) |_| {
+            total_steps *= @as(usize, @intCast(self.params.samples_per_pixel));
+        }
         var progress = std.Progress.start(
             .{
-                .estimated_total_items = @as(usize, @intCast(self.img_height)) * @as(usize, @intCast(self.img_width)),
+                .estimated_total_items = total_steps,
                 .root_name = "Tracing light paths...",
             },
         );
+        const n_jobs: usize = 16;
         var thread_pool: std.Thread.Pool = undefined;
-        try thread_pool.init(.{ .n_jobs = 16, .allocator = allocator });
+        try thread_pool.init(.{ .n_jobs = n_jobs, .allocator = allocator });
         errdefer thread_pool.deinit();
-        for (0..self.img_height) |j| {
-            for (0..self.img_width) |i| {
-                try thread_pool.spawn(Camera.renderPixel, .{
+        defer thread_pool.deinit();
+        defer progress.end();
+        // INFO: Divide the image in n_jobs x n_jobs tiles and spawn one thread per
+        // tile. This will allow many pixels to be rendered in the same thread, which
+        // should give a better visualization if we cycle through every pixel in the
+        // tile to render the next sample.
+        const n_tiles = n_jobs;
+        const w_tiles = @sqrt(@as(f32, @floatFromInt(n_tiles)));
+        const h_tiles = @sqrt(@as(f32, @floatFromInt(n_tiles)));
+        const tile_size_w: usize = @as(
+            usize,
+            @intFromFloat(
+                @ceil(
+                    @as(f32, @floatFromInt(image.width)) / w_tiles,
+                ),
+            ),
+        );
+        const tile_size_h: usize = @as(
+            usize,
+            @intFromFloat(
+                @ceil(
+                    @as(f32, @floatFromInt(image.height)) / h_tiles,
+                ),
+            ),
+        );
+        std.debug.print("Rendering image in {d}x{d} tiles of size {d}x{d}\n", .{
+            w_tiles,
+            h_tiles,
+            tile_size_w,
+            tile_size_h,
+        });
+        if (viewer) |_| {
+            for (0..n_tiles) |t| {
+                const tile_index_h = @as(
+                    usize,
+                    @intFromFloat(
+                        @floor(@as(f32, @floatFromInt(t)) / w_tiles),
+                    ),
+                );
+                const tile_index_w = @as(
+                    usize,
+                    @intFromFloat(
+                        @mod(@as(f32, @floatFromInt(t)), w_tiles),
+                    ),
+                );
+                const x_start: usize = tile_index_w * tile_size_w;
+                const x_end: usize = @min(
+                    x_start + tile_size_w,
+                    @as(usize, @intCast(self.img_width)),
+                );
+                const y_start: usize = tile_index_h * tile_size_h;
+                const y_end: usize = @min(
+                    y_start + tile_size_h,
+                    @as(usize, @intCast(self.img_height)),
+                );
+                try thread_pool.spawn(Camera.renderTile, .{
                     self,
                     image,
                     world,
-                    i,
-                    j,
+                    .{ x_start, x_end },
+                    .{ y_start, y_end },
                     progress,
                 });
             }
+        } else {
+            for (0..self.img_height) |j| {
+                for (0..self.img_width) |i| {
+                    try thread_pool.spawn(Camera.renderPixel, .{
+                        self,
+                        image,
+                        world,
+                        i,
+                        j,
+                        progress,
+                    });
+                }
+            }
         }
         if (viewer) |v| {
-            try v.run();
+            v.run();
         }
-        thread_pool.deinit();
-        progress.end();
     }
 };

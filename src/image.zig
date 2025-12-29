@@ -133,6 +133,23 @@ pub const Image = struct {
         @memcpy(self.buffer[i .. i + 3], linearToGamma(c.data[0..c.data.len])[0..3]);
     }
 
+    pub fn accumulate(
+        self: *Image,
+        x: u16,
+        y: u16,
+        c: zm.Vec3,
+        spp: usize,
+    ) void {
+        const i: usize = self.getBufferIndex(x, y);
+        const gamma_px: [3]f32 = linearToGamma(c.data[0..c.data.len]);
+        inline for (0..3) |j| {
+            self.buffer[i + j] += gamma_px[j] * @as(
+                f32,
+                @floatCast(1.0 / @as(f64, @floatFromInt(spp))),
+            );
+        }
+    }
+
     pub fn deinit(self: *Image, allocator: std.mem.Allocator) void {
         self.image_file.deinit(allocator);
         allocator.free(self.buffer);

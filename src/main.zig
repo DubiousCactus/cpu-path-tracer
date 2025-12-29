@@ -7,7 +7,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     var camera = ray_tracer.Camera.init(.{
-        .img_width = 640,
+        .img_width = 1920,
         .img_aspect_ratio = 16.0 / 9.0,
         .vfov = 30,
         .look_from = zm.Vec3{ .data = .{ 13, 2, 3 } },
