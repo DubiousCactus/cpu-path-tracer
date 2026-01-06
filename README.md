@@ -16,4 +16,4 @@ implementation in the book:
 - [ ] Exporting to compressed image formats.
 - [x] Parallelism with threads.
 - [ ] Scene loading from gLTF files.
-- [ ] Live render in a window
+- [x] <details><summary>Live render in a window</summary><video url="cpu_path_tracer.mp4"></details>
