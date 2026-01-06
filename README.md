@@ -16,4 +16,8 @@ implementation in the book:
 - [ ] Exporting to compressed image formats.
 - [x] Parallelism with threads.
 - [ ] Scene loading from gLTF files.
-- [x] <details><summary>Live render in a window</summary><video url="cpu_path_tracer.mp4"></details>
+- [x] [Live render in a window](https://github.com/DubiousCactus/cpu-path-tracer/#live-render-preview)
+
+### Live render preview
+
+<video width="630" height="300" src="https://github.com/DubiousCactus/cpu-path-tracer/blob/f10cb8de4717f7949026620df497e91decf4d21b/cpu_path_tracer.mp4"/>
