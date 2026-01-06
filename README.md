@@ -20,4 +20,4 @@ implementation in the book:
 
 ### Live render preview
 
-<video width="630" height="300" src="https://github.com/DubiousCactus/cpu-path-tracer/blob/f10cb8de4717f7949026620df497e91decf4d21b/cpu_path_tracer.mp4"/>
+<video width="630" height="300" src="https://github.com/user-attachments/assets/38489f6f-cea2-49a1-9d23-02bfbb3506db"/>
