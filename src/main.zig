@@ -139,8 +139,10 @@ pub fn main() !void {
         ray_tracer.bvh.BVHBuildStrategy.LONGEST_AXIS,
     );
     defer bvh_world.deinit(allocator);
+    const viewer = try ray_tracer.LiveViewer.init(&img);
+    defer viewer.deinit();
     var timer = try std.time.Timer.start();
-    try camera.render(bvh_world, &img, allocator);
+    try camera.render(bvh_world, &img, allocator, viewer);
     // try camera.render(world, &img, allocator);
     const delta = timer.read();
     std.debug.print(

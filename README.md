@@ -16,4 +16,9 @@ implementation in the book:
 - [ ] Exporting to compressed image formats.
 - [x] Parallelism with threads.
 - [ ] Scene loading from gLTF files.
-- [ ] Live render in a window
+- [x] [Live render in a window](https://github.com/DubiousCactus/cpu-path-tracer/#live-render-preview)
+
+### Live render preview
+Sped up preview with 1024 threads rendering a test scene at 1920x1080 resolution, with 50 bounces per ray and 128 rays per pixel.
+
+<video width="630" height="300" src="https://github.com/user-attachments/assets/38489f6f-cea2-49a1-9d23-02bfbb3506db"/>
